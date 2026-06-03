@@ -1,0 +1,26 @@
+# Archivos de compilación y compiladores
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ww][Ww]root/dist/
+[Bb]in/
+[Oo]bj/
+*.log
+*.err
+*.wrn
+
+# Carpetas de paquetes de NuGet
+**/packages/*
+!**/packages/build/
+**/nuget.exe
+
+# Archivos de Visual Studio
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.csproj.DotSettings
+.vs/
