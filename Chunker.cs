@@ -5,10 +5,8 @@
     {
         public static IEnumerable<string> Chunker(string text)
         {
-            Console.WriteLine(text);
-            yield return text;
-
-            yield return text.ToLower();
+            // TODO: Escribir un chunker simple por parrafos, y si hay \n\t entonces no splitear 
+            yield return "";
         }
     }
 }

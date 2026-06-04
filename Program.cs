@@ -1,4 +1,4 @@
-using obsidian_RAG;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,26 +6,20 @@ var app = builder.Build();
 
 
 
-app.MapPost("/md",  async (List<IFormFile> files) =>
+app.MapPost("/md", async (HttpRequest request) =>
 {
-    try {
+    var form = await request.ReadFormAsync();
+    var texts = filetostring(form.Files);
+    return Results.Ok(texts);
+})
+.DisableAntiforgery();
 
-        if (files==null||files.Count==0)
-        {
-            return Results.BadRequest("No hay archivos");
-        }
-        List<string> texts=filetostring(files);
-        return texts[1];
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message);
-    }
+app.MapGet("/siu", () =>
+{
+    return Results.Ok("siu");
+});
 
-}).DisableAntiforgery();
-
-
-List<string> filetostring(List<IFormFile> files)
+List<string> filetostring(IFormFileCollection files)
 {
     List<string> texts = new List<string>();
     foreach (var file in files)
