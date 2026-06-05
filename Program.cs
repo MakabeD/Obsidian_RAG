@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using obsidian_RAG;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +11,8 @@ app.MapPost("/md", async (HttpRequest request) =>
 {
     var form = await request.ReadFormAsync();
     var texts = filetostring(form.Files);
-    return Results.Ok(texts);
+    var _chunk = Chunk.Chunker(texts[1], 600);
+    return Results.Ok(_chunk);
 })
 .DisableAntiforgery();
 
@@ -26,7 +28,7 @@ List<string> filetostring(IFormFileCollection files)
     {
         var stream = file.OpenReadStream();
         var reader = new StreamReader(stream);
-        texts.Add(reader.ReadToEnd());
+        texts.Add(file.FileName.ToString()+"\n"+reader.ReadToEnd());
     }
     return texts;
 

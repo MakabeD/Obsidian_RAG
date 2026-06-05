@@ -2,6 +2,6 @@
 {
     public interface IChunk
     {
-        static abstract IEnumerable<string> Chunker(string text);
+        static abstract IEnumerable<string> Chunker(string text, int characterThreshold);
     }
 }
