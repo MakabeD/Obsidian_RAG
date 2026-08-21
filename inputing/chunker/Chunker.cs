@@ -1,9 +1,9 @@
-﻿namespace obsidian_RAG
+﻿namespace chunker
 {
     
-    public class Chunk:IChunk
+    public class Chunker:IChunker
     {
-        public static IEnumerable<string> Chunker(string text, int characterThreshold)
+        public static IEnumerable<string> Chunking(string text, int characterThreshold)
         {
             int dotsearch(string chunk, int middle_pos)
             {
