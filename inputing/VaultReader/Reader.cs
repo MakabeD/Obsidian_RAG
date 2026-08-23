@@ -3,7 +3,7 @@ namespace vaultReader
 {
     public class VaultReader()
     {
-        public static List<DocumentData> reader(IFormFileCollection files)
+        public static async Task<List<DocumentData>> reader(IFormFileCollection files)
         {
             List<DocumentData> ProcesedFiles=new List<DocumentData>();
             
@@ -11,7 +11,9 @@ namespace vaultReader
             {
                 if( file.FileName.EndsWith(".zip"))
                 {
-                    Task<List<DocumentData>> ProcessedZip =getmdfromzip(file);
+                    Task<List<DocumentData>> task_=getmdfromzip(file);
+                    List<DocumentData> ProcessedZip =  await task_;
+                    ProcesedFiles.AddRange(ProcessedZip); 
                 }
                 else if(file.FileName.EndsWith(".md"))
                 {
