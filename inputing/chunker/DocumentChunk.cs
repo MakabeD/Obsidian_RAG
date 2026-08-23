@@ -4,7 +4,7 @@ namespace chunker
     {
         public required string Id {get;set;}
         public required string Content {get;set;}
-        public required float[] Embedding {get;set;}
-        public Dictionary<string, string>? Metadata {get;set;}
+        public float[]? Embedding {get;set;}
+        public Metadata? Metadata {get;set;}
     }
 }

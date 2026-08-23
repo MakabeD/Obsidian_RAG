@@ -1,7 +1,8 @@
-﻿namespace chunker
+﻿using vaultReader;
+namespace chunker
 {
     public interface IChunker
     {
-        static abstract IEnumerable<string> Chunking(string text, int characterThreshold);
+        static abstract IEnumerable<DocumentChunk> Chunking(DocumentData document, int characterThreshold);
     }
 }

@@ -13,7 +13,8 @@ app.MapPost("/md", async (HttpRequest request) =>
     
     List<DocumentData> Documents = await VaultReader.reader(form.Files);
 
-    return Results.Ok(Documents);
+    var x = Chunker.Chunking(Documents[0], 600);
+    return Results.Ok(x);
 })
 .DisableAntiforgery();
 
