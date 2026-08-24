@@ -1,70 +1,98 @@
-﻿using vaultReader;
+﻿using System.Text;
+using vaultReader;
 namespace chunker
 {
-    
     public class Chunker:IChunker
     {
         public static IEnumerable<DocumentChunk> Chunking(DocumentData document, int characterThreshold)
         {
-            string text = document.Content;
             int chunkIndex = 1;
+            string[] lines = document.Content.Split('\n');
+            var chunk = new StringBuilder();
+            bool inCodeFence = false;
 
-            int dotsearch(string chunk, int middle_pos)
+            IEnumerable<DocumentChunk> Emit(string content)
             {
-                for (int j = 1; j < middle_pos; j++)
+                float ratio = (float)content.Length / characterThreshold;
+                IEnumerable<string> pieces = ratio >= 1.2f
+                    ? SplitIntoPieces(content, characterThreshold)
+                    : new[] { content };
+
+                foreach (string piece in pieces)
                 {
-                    if (chunk[middle_pos + j] == '.') return middle_pos + j;
-                    if (chunk[middle_pos - j] == '.') return middle_pos + j;
+                    yield return new DocumentChunk
+                    {
+                        Id = $"{document.FileName}_{chunkIndex++:D3}",
+                        Content = piece,
+                        Metadata = new Metadata { Source = document.Source, FileName = document.FileName }
+                    };
                 }
-                return middle_pos;
             }
 
-            string chunk = "#";
-            for (int i = 0; i < text.Length; i++)
+            for (int i = 0; i < lines.Length; i++)
             {
-                if (text[i] != '#')
+                string rawLine = lines[i];
+                string line = rawLine.TrimEnd('\r');
+
+                bool isFence = line.TrimStart().StartsWith("```");
+                bool isHeading = !inCodeFence && !isFence && line.StartsWith('#');
+
+                if (isHeading)
                 {
-                    chunk += text[i];
+                    if (chunk.Length > 0)
+                    {
+                        foreach (DocumentChunk dc in Emit(chunk.ToString())) yield return dc;
+                        chunk.Clear();
+                    }
+                    chunk.Append('#').Append(line.TrimStart('#'));
                 }
-                else if (chunk.Length > 1) 
+                else
                 {
-                    if (chunk.Length > characterThreshold && (chunk.Length / characterThreshold) >= 1.2)
-                    {
-                        int dotpos = dotsearch(chunk, (int)(chunk.Length / characterThreshold));
-                        
-                        
-                        yield return new DocumentChunk { 
-                            Id = $"{document.FileName}_{chunkIndex++:D3}",
-                            Content = chunk.Substring(0, dotpos + 1), 
-                            Metadata = new Metadata { Source = document.Source, FileName = document.FileName } 
-                        };
-                        yield return new DocumentChunk { 
-                            Id = $"{document.FileName}_{chunkIndex++:D3}",
-                            Content = chunk.Substring(dotpos - 1), 
-                            Metadata = new Metadata { Source = document.Source, FileName = document.FileName } 
-                        };
-                    }
-                    else
-                    {
-                        yield return new DocumentChunk { 
-                            Id = $"{document.FileName}_{chunkIndex++:D3}",
-                            Content = chunk, 
-                            Metadata = new Metadata { Source = document.Source, FileName = document.FileName } 
-                        };
-                    }
-                    
-                    chunk = "#";
+                    chunk.Append(rawLine);
                 }
+
+                if (i < lines.Length - 1) chunk.Append('\n');
+                if (isFence) inCodeFence = !inCodeFence;
             }
-            
-            if (chunk.Length > 1)
+
+            if (chunk.Length > 0)
             {
-                yield return new DocumentChunk { 
-                    Id = $"{document.FileName}_{chunkIndex++:D3}",
-                    Content = chunk, 
-                    Metadata = new Metadata { Source = document.Source, FileName = document.FileName } 
-                };
+                foreach (DocumentChunk dc in Emit(chunk.ToString())) yield return dc;
             }
+        }
+
+        private static IEnumerable<string> SplitIntoPieces(string text, int threshold)
+        {
+            int start = 0;
+            while (text.Length - start >= threshold)
+            {
+                int center = Math.Min(start + threshold, text.Length - 1);
+                int cut = FindNearestDot(
+                    text,
+                    center,
+                    Math.Max(center - threshold / 2, start),
+                    Math.Min(center + threshold / 2, text.Length - 1));
+
+                if (cut < 0) cut = center;
+
+                yield return text.Substring(start, cut - start + 1);
+                start = cut + 1;
+            }
+
+            if (start < text.Length) yield return text.Substring(start);
+        }
+
+        private static int FindNearestDot(string text, int middlePos, int minBound, int maxBound)
+        {
+            if (text[middlePos] == '.') return middlePos;
+
+            int maxRadius = Math.Min(middlePos - minBound, maxBound - middlePos);
+            for (int j = 1; j <= maxRadius; j++)
+            {
+                if (text[middlePos + j] == '.') return middlePos + j;
+                if (text[middlePos - j] == '.') return middlePos - j;
+            }
+            return -1;
         }
     }
 }
