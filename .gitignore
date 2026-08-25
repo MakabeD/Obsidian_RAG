@@ -24,3 +24,5 @@ x86/
 *.sln.docstates
 *.csproj.DotSettings
 .vs/
+
+model

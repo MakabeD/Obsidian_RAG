@@ -14,6 +14,8 @@ app.MapPost("/md", async (HttpRequest request) =>
     List<DocumentData> Documents = await VaultReader.reader(form.Files);
 
     var x = Chunker.Chunking(Documents[0], 600);
+    var embed=new EmbeddingService("model/model.onnx", "model/vocab.txt");
+    embed.Embed(Documents[0].Content);
     return Results.Ok(x);
 })
 .DisableAntiforgery();
