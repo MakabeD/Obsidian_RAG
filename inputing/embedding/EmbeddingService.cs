@@ -33,9 +33,25 @@ public class EmbeddingService
             NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypesIdsTensor),
 
         };
-        var outputTensor= _session.Run(inputs);
-        Console.WriteLine(outputTensor);
-        // TODO: terminar el metodo= mean pooling + generar embeding + rectificar el return de la funcion en vez de void
+        var result= _session.Run(inputs);
+        var outputTensor= result.First().AsTensor<float>();
+        var hiddenSize=outputTensor.Dimensions[2];
+        // mean pooling 
+        float[] embedding= new float[hiddenSize];
+        for (int i=0; i<sequenceLength; i++)
+        {
+            for(int j=0;j<hiddenSize;j++)
+            {
+                embedding[j]+=outputTensor[0, i, j];
+            }
+        }
+        for (int i=0; i<hiddenSize;i++)
+        {
+            embedding[i]/=sequenceLength;
+        }
+        
+
+        // TODO: terminar el metodo= rectificar el return de la funcion en vez de void
     }
     
 }
