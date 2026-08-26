@@ -15,10 +15,15 @@ public class EmbeddingService
         _tokenizer = WordPieceTokenizer.Create(vocabStream);
         _session = new InferenceSession(modelPath);
     }
-    public void Embed(string text)
+    public float[] Embed(string text)
     {
-        IReadOnlyList<int>tokenids=_tokenizer.EncodeToIds(text);
-        long[] idsArray= tokenids.Select(r => (long)r).ToArray();
+        IReadOnlyList<int>rawTokenIds=_tokenizer.EncodeToIds(text);
+
+        List<long> idsList=new List<long>(rawTokenIds.Count + 2) { 101 };
+        idsList.AddRange(rawTokenIds.Select(r=>(long)r));
+        idsList.Add(102);
+
+        long[] idsArray= idsList.Select(r => (long)r).ToArray();
         long[] attentionMask= Enumerable.Repeat(1L, idsArray.Length).ToArray();
         int batchsize=1;
         int sequenceLength=idsArray.Length;
@@ -33,7 +38,7 @@ public class EmbeddingService
             NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypesIdsTensor),
 
         };
-        var result= _session.Run(inputs);
+        using var result= _session.Run(inputs);
         var outputTensor= result.First().AsTensor<float>();
         var hiddenSize=outputTensor.Dimensions[2];
         // mean pooling 
@@ -50,8 +55,11 @@ public class EmbeddingService
             embedding[i]/=sequenceLength;
         }
         
-
-        // TODO: terminar el metodo= rectificar el return de la funcion en vez de void
+        return embedding;
+    }
+    public void Dispose()
+    {
+        _session?.Dispose();
     }
     
 }
