@@ -1,3 +1,4 @@
+using chunker;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using Microsoft.ML.Tokenizers;
@@ -56,6 +57,15 @@ public class EmbeddingService
         }
         
         return embedding;
+    }
+    
+    public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
+    {
+        foreach (var doc in documents)
+        {
+            doc.Embedding = Embed(doc.Content);
+            yield return doc;
+        }
     }
     public void Dispose()
     {

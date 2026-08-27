@@ -15,8 +15,8 @@ app.MapPost("/md", async (HttpRequest request) =>
 
     var x = Chunker.Chunking(Documents[0], 600);
     var embed=new EmbeddingService("model/model.onnx", "model/vocab.txt");
-    embed.Embed(Documents[0].Content);
-    return Results.Ok(x);
+    
+    return Results.Ok(embed.Embed(Documents[0].Content));
 })
 .DisableAntiforgery();
 
