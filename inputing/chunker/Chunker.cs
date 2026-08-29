@@ -61,6 +61,17 @@ namespace chunker
             }
         }
 
+        public static IEnumerable<DocumentChunk> Chunking(IEnumerable<DocumentData> documents, int characterThreshold)
+        {
+            foreach (DocumentData document in documents)
+            {
+                foreach (DocumentChunk chunk in Chunking(document, characterThreshold))
+                {
+                    yield return chunk;
+                }
+            }
+        }
+
         private static IEnumerable<string> SplitIntoPieces(string text, int threshold)
         {
             int start = 0;

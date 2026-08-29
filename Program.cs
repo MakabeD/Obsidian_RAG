@@ -15,8 +15,8 @@ app.MapPost("/md", async (EmbeddingService embed, HttpRequest request) =>
     var form = await request.ReadFormAsync();
     
     List<DocumentData> Documents = await VaultReader.reader(form.Files);
-
-    return Results.Ok(embed.Embed(Documents[0].Content));
+    IEnumerable<DocumentChunk> chunks = Chunker.Chunking(Documents, 600);
+    return Results.Ok(embed.EmbeddRange(chunks));
 })
 .DisableAntiforgery();
 
