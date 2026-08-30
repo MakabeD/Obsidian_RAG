@@ -131,7 +131,7 @@ public class ChromaService
         var docs = json.GetProperty("documents")[0];
         var metas = json.GetProperty("metadatas")[0];
         var distances = json.GetProperty("distances")[0];
-
+        // TODO: can be this more optimized?
         for (int i = 0; i < ids.GetArrayLength(); i++)
         {
             var metadataDict = JsonSerializer.Deserialize<Dictionary<string, object>>(metas[i].GetRawText()) 
