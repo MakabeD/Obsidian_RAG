@@ -1,13 +1,15 @@
 using System.Collections.Concurrent;
+using configuration;
+using Microsoft.Extensions.Options;
 
 public class SessionRegistry
 {
     private readonly ConcurrentDictionary<string, DateTime> _lastSeen = new();
     private readonly TimeSpan _ttl;
 
-    public SessionRegistry(TimeSpan? ttl = null)
+    public SessionRegistry(IOptions<RagOptions> options)
     {
-        _ttl = ttl ?? TimeSpan.FromMinutes(10);
+        _ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.SessionTtlMinutes));
     }
 
     public string Create()

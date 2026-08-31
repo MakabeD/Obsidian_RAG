@@ -1,24 +1,27 @@
-public class SessionSweeper(SessionRegistry registry, ChromaService chroma, ILogger<SessionSweeper> logger) : BackgroundService
+using configuration;
+using Microsoft.Extensions.Options;
+
+public class SessionSweeper(SessionRegistry registry, ChromaService chroma, IOptions<RagOptions> options, ILogger<SessionSweeper> logger) : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
+    private readonly TimeSpan _interval = TimeSpan.FromSeconds(Math.Max(5, options.Value.SweepIntervalSeconds));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using PeriodicTimer timer = new(Interval);
+        using PeriodicTimer timer = new(_interval);
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
             foreach (string sessionId in registry.GetExpired())
             {
                 try
                 {
-                    await chroma.InitializeAsync();
-                    await chroma.TerminateSessionAsync(sessionId);
+                    await chroma.InitializeAsync(stoppingToken);
+                    await chroma.TerminateSessionAsync(sessionId, stoppingToken);
                     registry.Remove(sessionId);
                     logger.LogInformation("Sesion {SessionId} expirada y eliminada de Chroma", sessionId);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Could not clean up expired session {SessionId}; retrying in the next cycle", sessionId);
+                    logger.LogError(ex, "No se pudo limpiar la sesion expirada {SessionId}, se reintenta en el proximo ciclo", sessionId);
                 }
             }
         }

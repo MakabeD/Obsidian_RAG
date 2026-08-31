@@ -1,83 +1,99 @@
 using System.IO.Compression;
+using configuration;
+using Microsoft.Extensions.Options;
 namespace vaultReader
 {
     public class VaultReader()
     {
-        public static async Task<List<DocumentData>> reader(IFormFileCollection files)
+        private static readonly HashSet<string> AllowedExtensions =
+            new(StringComparer.OrdinalIgnoreCase) { ".md", ".zip" };
+
+        public static async Task<List<DocumentData>> reader(
+            IFormFileCollection files,
+            IOptions<RagOptions> options)
         {
-            List<DocumentData> ProcesedFiles=new List<DocumentData>();
-            
-            foreach (var file in files)
+            RagOptions opts = options.Value;
+            List<DocumentData> processedFiles = new();
+
+            foreach (IFormFile file in files)
             {
-                if( file.FileName.EndsWith(".zip"))
+                string ext = Path.GetExtension(file.FileName);
+                if (!AllowedExtensions.Contains(ext))
                 {
-                    Task<List<DocumentData>> task_=getmdfromzip(file);
-                    List<DocumentData> ProcessedZip =  await task_;
-                    ProcesedFiles.AddRange(ProcessedZip); 
-                }
-                else if(file.FileName.EndsWith(".md"))
-                {
-                    ProcesedFiles.Add(filetostring(file));
+                    throw new NotSupportedException(
+                        $"Unsupported file type: '{ext}'. Only .md and .zip are accepted.");
                 }
 
+                if (file.Length > opts.MaxUploadBytes)
+                {
+                    throw new InvalidOperationException(
+                        $"The file '{file.FileName}' exceeds the limit of {opts.MaxUploadBytes} bytes.");
+                }
+
+                if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+                {
+                    processedFiles.AddRange(await GetMdFromZipAsync(file, opts));
+                }
+                else
+                {
+                    processedFiles.Add(FileToString(file));
+                }
             }
-            return ProcesedFiles;
+
+            return processedFiles;
         }
 
-        public static DocumentData filetostring(IFormFile file)
-        { 
-            var stream = file.OpenReadStream();
-            var reader = new StreamReader(stream);
+        private static DocumentData FileToString(IFormFile file)
+        {
+            using var stream = file.OpenReadStream();
+            using var reader = new StreamReader(stream);
 
             return new DocumentData
             {
-                Source=file.FileName,
-                FileName=file.FileName,
-                Content=reader.ReadToEnd()
+                Source = file.FileName,
+                FileName = file.FileName,
+                Content = reader.ReadToEnd()
             };
-            
-
         }
-        public static async Task<List<DocumentData>> getmdfromzip(IFormFile file)
+
+        private static async Task<List<DocumentData>> GetMdFromZipAsync(IFormFile file, RagOptions opts)
         {
-            List<DocumentData> ProcessedZip = new List<DocumentData>();
+            List<DocumentData> processedZip = new();
 
-            using (var stream = file.OpenReadStream())
-            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read))
+            using var stream = file.OpenReadStream();
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read);
+
+            foreach (ZipArchiveEntry entry in zip.Entries)
             {
-                foreach (ZipArchiveEntry entry in zip.Entries)
+                if (string.IsNullOrEmpty(entry.Name))
                 {
-
-                    if (entry.FullName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string source = entry.FullName;
-                        string filename = entry.Name; 
-
-                        
-                        string content = string.Empty;
-                        
-                        using (Stream fileflow = entry.Open())
-                        using (StreamReader reader = new StreamReader(fileflow))
-                        {
-                            
-                            content = await reader.ReadToEndAsync();
-                        }
-
-                        ProcessedZip.Add(new DocumentData 
-                        {
-                            Source = source,
-                            FileName = filename,
-                            Content = content
-                        });
-
-                       
-                    }
+                    continue;
                 }
+
+                if (entry.Length > opts.MaxZipEntryBytes)
+                {
+                    throw new InvalidOperationException(
+                        $"Zip entry '{entry.FullName}' exceeds the limit of {opts.MaxZipEntryBytes} bytes (possible zip bomb).");
+                }
+
+                if (!entry.FullName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                using Stream fileflow = entry.Open();
+                using StreamReader reader = new(fileflow);
+                string content = await reader.ReadToEndAsync();
+
+                processedZip.Add(new DocumentData
+                {
+                    Source = entry.FullName,
+                    FileName = entry.Name,
+                    Content = content
+                });
             }
-            return ProcessedZip;
+
+            return processedZip;
         }
-
     }
-
-
 }
