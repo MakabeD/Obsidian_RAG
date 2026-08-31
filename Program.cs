@@ -3,12 +3,34 @@ using System.Security.Cryptography;
 using System.Text;
 using chunker;
 using configuration;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using vaultReader;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.ClearProviders();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Logging.AddSimpleConsole(o =>
+    {
+        o.IncludeScopes = true;
+        o.SingleLine = true;
+    });
+}
+else
+{
+    builder.Logging.AddJsonConsole(o =>
+    {
+        o.IncludeScopes = true;
+        o.TimestampFormat = "yyyy-MM-ddTHH:mm:ss.fffZ";
+        o.UseUtcTimestamp = true;
+    });
+}
 
 builder.Services
     .AddOptions<RagOptions>()
@@ -30,6 +52,10 @@ builder.Services.AddHttpClient<ChromaService>(c =>
     c.Timeout = TimeSpan.FromSeconds(30);
 });
 
+builder.Services.AddHealthChecks()
+    .AddCheck<ChromaHealthCheck>("chroma", tags: new[] { "ready" })
+    .AddCheck<OnnxModelHealthCheck>("onnx_model", tags: new[] { "ready" });
+
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
@@ -46,13 +72,26 @@ WebApplication app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.MapGet("/siu", () => Results.Ok(new { status = "ok" }));
+
+app.MapHealthChecks("/healthz/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = HealthCheckResponseWriter.WriteJson
+});
+
+app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
+{
+    Predicate = c => c.Tags.Contains("ready"),
+    ResponseWriter = HealthCheckResponseWriter.WriteJson
+});
 
 app.MapPost("/session", (SessionRegistry registry) =>
     Results.Ok(new { sessionId = registry.Create() }));
 
-app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, CancellationToken ct) =>
+app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, ILoggerFactory loggerFactory, CancellationToken ct) =>
 {
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
@@ -60,6 +99,7 @@ app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, Chrom
     await chroma.InitializeAsync(ct);
     await chroma.TerminateSessionAsync(id, ct);
     registry.Remove(id);
+    loggerFactory.CreateLogger("Endpoints").LogInformation("Session {SessionId} terminated", id);
     return Results.Ok(new { deleted = id });
 });
 
@@ -70,8 +110,10 @@ app.MapPost("/session/{id}/md", async (
     ChromaService chroma,
     IOptions<RagOptions> options,
     HttpRequest request,
+    ILoggerFactory loggerFactory,
     CancellationToken ct) =>
 {
+    ILogger logger = loggerFactory.CreateLogger("Endpoints");
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
     registry.Touch(id);
@@ -102,6 +144,7 @@ app.MapPost("/session/{id}/md", async (
 
     await chroma.InitializeAsync(ct);
     await chroma.AddSessionRecordsAsync(id, docs, ct);
+    logger.LogInformation("Session {SessionId} stored {Count} chunks", id, docs.Count);
     return Results.Ok(new { stored = docs.Count });
 })
 .DisableAntiforgery();
@@ -113,8 +156,10 @@ app.MapPost("/session/{id}/query", async (
     ChromaService chroma,
     IOptions<RagOptions> options,
     QueryRequest body,
+    ILoggerFactory loggerFactory,
     CancellationToken ct) =>
 {
+    ILogger logger = loggerFactory.CreateLogger("Endpoints");
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
     registry.Touch(id);
@@ -130,6 +175,7 @@ app.MapPost("/session/{id}/query", async (
     await chroma.InitializeAsync(ct);
     float[] queryEmbedding = embed.Embed(body.Prompt);
     List<SearchResult> results = await chroma.QuerySessionAsync(id, queryEmbedding, topK, ct);
+    logger.LogInformation("Session {SessionId} query returned {Count} results", id, results.Count);
     return Results.Ok(results);
 });
 

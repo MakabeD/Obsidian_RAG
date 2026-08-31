@@ -11,17 +11,24 @@ public class EmbeddingService : IDisposable
     private readonly WordPieceTokenizer _tokenizer;
     private readonly int _maxTokenLength;
     private readonly ILogger<EmbeddingService> _logger;
+    private readonly RagOptions _opts;
 
     public EmbeddingService(IOptions<RagOptions> options, ILogger<EmbeddingService> logger)
     {
-        RagOptions opts = options.Value;
+        _opts = options.Value;
         _logger = logger;
-        _maxTokenLength = opts.MaxTokenLength;
+        _maxTokenLength = _opts.MaxTokenLength;
 
-        using var vocabStream = File.OpenRead(opts.VocabPath);
+        using var vocabStream = File.OpenRead(_opts.VocabPath);
         _tokenizer = WordPieceTokenizer.Create(vocabStream);
-        _session = new InferenceSession(opts.ModelPath);
+        _session = new InferenceSession(_opts.ModelPath);
     }
+
+    public bool IsLoaded =>
+        _session is not null
+        && _tokenizer is not null
+        && File.Exists(_opts.ModelPath)
+        && File.Exists(_opts.VocabPath);
 
     public float[] Embed(string text)
     {

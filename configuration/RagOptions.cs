@@ -22,4 +22,6 @@ public class RagOptions
 
     public int SessionTtlMinutes { get; set; } = 10;
     public int SweepIntervalSeconds { get; set; } = 30;
+
+    public int HealthCheckTimeoutMs { get; set; } = 2000;
 }
