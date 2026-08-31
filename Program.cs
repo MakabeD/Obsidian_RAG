@@ -73,7 +73,7 @@ app.MapPost("/session/{id}/md", async (
     CancellationToken ct) =>
 {
     if (!registry.Exists(id))
-        return Results.NotFound(new { error = "Sesion no encontrada" });
+        return Results.NotFound(new { error = "Session not found" });
     registry.Touch(id);
 
     RagOptions opts = options.Value;
@@ -81,7 +81,7 @@ app.MapPost("/session/{id}/md", async (
     List<DocumentData> documents = await VaultReader.reader(form.Files, options);
 
     if (documents.Count == 0)
-        return Results.BadRequest(new { error = "No se encontraron documentos procesables" });
+        return Results.BadRequest(new { error = "No actionable documents were found." });
 
     List<DocumentChunk> chunks = embed
         .EmbeddRange(Chunker.Chunking(documents, opts.ChunkThreshold))
@@ -116,16 +116,16 @@ app.MapPost("/session/{id}/query", async (
     CancellationToken ct) =>
 {
     if (!registry.Exists(id))
-        return Results.NotFound(new { error = "Sesion no encontrada" });
+        return Results.NotFound(new { error = "Session not found" });
     registry.Touch(id);
 
     RagOptions opts = options.Value;
     int topK = body.TopK ?? opts.DefaultTopK;
     if (topK < 1 || topK > opts.MaxTopK)
-        return Results.BadRequest(new { error = $"topK debe estar entre 1 y {opts.MaxTopK}" });
+        return Results.BadRequest(new { error = $"topK must be between 1 and {opts.MaxTopK}" });
 
     if (string.IsNullOrWhiteSpace(body.Prompt))
-        return Results.BadRequest(new { error = "El prompt no puede estar vacío" });
+        return Results.BadRequest(new { error = "Prompt cannot be empty" });
 
     await chroma.InitializeAsync(ct);
     float[] queryEmbedding = embed.Embed(body.Prompt);

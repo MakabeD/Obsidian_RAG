@@ -17,11 +17,11 @@ public class SessionSweeper(SessionRegistry registry, ChromaService chroma, IOpt
                     await chroma.InitializeAsync(stoppingToken);
                     await chroma.TerminateSessionAsync(sessionId, stoppingToken);
                     registry.Remove(sessionId);
-                    logger.LogInformation("Sesion {SessionId} expirada y eliminada de Chroma", sessionId);
+                    logger.LogInformation("Session {SessionId} expired and removed from Chroma", sessionId);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "No se pudo limpiar la sesion expirada {SessionId}, se reintenta en el proximo ciclo", sessionId);
+                    logger.LogError(ex, "Could not clean up expired session {SessionId}; retrying in the next cycle.", sessionId);
                 }
             }
         }
