@@ -109,7 +109,6 @@ namespace vaultReader
                 string safeSource = SanitizeEntryPath(entry.FullName);
 
                 using Stream fileflow = entry.Open();
-                var x=fileflow.Length;
                 using var ms = new MemoryStream();
                 await fileflow.CopyToAsync(ms);
                 long entrySize = ms.Length;
