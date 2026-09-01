@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics;
+using vaultReader;
 
 namespace configuration;
 
@@ -12,6 +13,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         (int status, string title) = exception switch
         {
             NotSupportedException => (StatusCodes.Status400BadRequest, "Unsuppoerted file type"),
+            UnsafeZipException    => (StatusCodes.Status400BadRequest, "Unsafe or oversized zip archive"),
             ArgumentException       => (StatusCodes.Status400BadRequest, "Invalid argument"),
             BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid request"),
             HttpRequestException    => (StatusCodes.Status502BadGateway, "Error communicating with an external service"),

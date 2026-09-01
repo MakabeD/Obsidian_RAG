@@ -19,6 +19,9 @@ public class RagOptions
 
     public long MaxUploadBytes { get; set; } = 25 * 1024 * 1024;
     public long MaxZipEntryBytes { get; set; } = 5 * 1024 * 1024;
+    public long MaxZipTotalUncompressedBytes { get; set; } = 200L * 1024 * 1024;
+    public int MaxZipEntries { get; set; } = 5_000;
+    public int MaxZipCompressionRatio { get; set; } = 100;
 
     public int SessionTtlMinutes { get; set; } = 10;
     public int SweepIntervalSeconds { get; set; } = 30;
