@@ -12,7 +12,7 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
     {
         (int status, string title) = exception switch
         {
-            NotSupportedException => (StatusCodes.Status400BadRequest, "Unsuppoerted file type"),
+            NotSupportedException => (StatusCodes.Status400BadRequest, "Unsupported file type"),
             UnsafeZipException    => (StatusCodes.Status400BadRequest, "Unsafe or oversized zip archive"),
             ArgumentException       => (StatusCodes.Status400BadRequest, "Invalid argument"),
             BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid request"),
