@@ -15,18 +15,21 @@ public class ChromaHealthCheck(IHttpClientFactory httpClientFactory, IOptions<Ra
         {
             client.BaseAddress = new Uri(opts.ChromaBaseUrl);
         }
-        client.Timeout = TimeSpan.FromMilliseconds(opts.HealthCheckTimeoutMs);
+
+        TimeSpan requestTimeout = TimeSpan.FromMilliseconds(opts.HealthCheckTimeoutMs);
+        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(requestTimeout);
 
         try
         {
-            using HttpResponseMessage response = await client.GetAsync("/api/v2/heartbeat", cancellationToken);
+            using HttpResponseMessage response = await client.GetAsync("/api/v2/heartbeat", timeoutCts.Token);
             if (response.IsSuccessStatusCode)
             {
                 return HealthCheckResult.Healthy("Chroma reachable");
             }
             return HealthCheckResult.Unhealthy($"Chroma heartbeat returned {(int)response.StatusCode} {response.ReasonPhrase}");
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning("Chroma health check timed out after {TimeoutMs}ms", opts.HealthCheckTimeoutMs);
             return HealthCheckResult.Unhealthy("Chroma health check timed out");
