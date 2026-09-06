@@ -49,7 +49,7 @@ builder.Services.AddHostedService<SessionSweeper>();
 builder.Services.AddHttpClient<ChromaService>(c =>
 {
     c.BaseAddress = new Uri(rag.ChromaBaseUrl);
-    c.Timeout = TimeSpan.FromSeconds(30);
+    c.Timeout = TimeSpan.FromSeconds(Defaults.ChromaTimeoutSeconds);
 });
 
 builder.Services.AddHealthChecks()
@@ -211,3 +211,8 @@ static string ShortHash(string content)
 }
 
 public record QueryRequest([Required] string Prompt, int? TopK);
+
+static class Defaults
+{
+    public const int ChromaTimeoutSeconds = 30;
+}
