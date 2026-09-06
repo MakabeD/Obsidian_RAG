@@ -32,15 +32,16 @@ else
     });
 }
 
+IConfigurationSection ragSection = builder.Configuration.GetSection(RagOptions.SectionName);
+
 builder.Services
     .AddOptions<RagOptions>()
-    .Bind(builder.Configuration.GetSection(RagOptions.SectionName))
+    .Bind(ragSection)
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-RagOptions rag = builder.Configuration
-    .GetSection(RagOptions.SectionName)
-    .Get<RagOptions>() ?? new RagOptions();
+RagOptions rag = new();
+ragSection.Bind(rag);
 
 builder.Services.AddSingleton<EmbeddingService>();
 builder.Services.AddSingleton<SessionRegistry>();
