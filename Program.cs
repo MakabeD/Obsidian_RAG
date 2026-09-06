@@ -92,7 +92,7 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 app.MapPost("/session", (SessionRegistry registry) =>
     Results.Ok(new { sessionId = registry.Create() }));
 
-app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, ILoggerFactory loggerFactory, CancellationToken ct) =>
+app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, ILogger<EndpointsMarker> logger, CancellationToken ct) =>
 {
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
@@ -100,7 +100,7 @@ app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, Chrom
     await chroma.InitializeAsync(ct);
     await chroma.TerminateSessionAsync(id, ct);
     registry.Remove(id);
-    loggerFactory.CreateLogger("Endpoints").LogInformation("Session {SessionId} terminated", id);
+    logger.LogInformation("Session {SessionId} terminated", id);
     return Results.Ok(new { deleted = id });
 });
 
@@ -111,10 +111,9 @@ app.MapPost("/session/{id}/md", async (
     ChromaService chroma,
     IOptions<RagOptions> options,
     HttpRequest request,
-    ILoggerFactory loggerFactory,
+    ILogger<EndpointsMarker> logger,
     CancellationToken ct) =>
 {
-    ILogger logger = loggerFactory.CreateLogger("Endpoints");
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
     registry.Touch(id);
@@ -157,10 +156,9 @@ app.MapPost("/session/{id}/query", async (
     ChromaService chroma,
     IOptions<RagOptions> options,
     QueryRequest body,
-    ILoggerFactory loggerFactory,
+    ILogger<EndpointsMarker> logger,
     CancellationToken ct) =>
 {
-    ILogger logger = loggerFactory.CreateLogger("Endpoints");
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
     registry.Touch(id);
@@ -212,6 +210,8 @@ static string ShortHash(string content)
 }
 
 public record QueryRequest([Required] string Prompt, int? TopK);
+
+public sealed class EndpointsMarker;
 
 static class Defaults
 {
