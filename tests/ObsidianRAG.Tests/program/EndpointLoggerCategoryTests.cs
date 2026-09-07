@@ -8,7 +8,7 @@ namespace ObsidianRAG.Tests.program;
 public class EndpointLoggerCategoryTests
 {
     [Fact]
-    public void Typed_endpoints_logger_resolves_and_emits_under_the_marker_category()
+    public void Typed_endpoints_logger_emits_under_the_Endpoints_category_constant()
     {
         var logs = new CapturingLoggerProvider();
 
@@ -20,11 +20,11 @@ public class EndpointLoggerCategoryTests
             });
         });
 
-        ILogger<EndpointsMarker> logger = factory.Services.GetRequiredService<ILogger<EndpointsMarker>>();
+        ILogger<Endpoints> logger = factory.Services.GetRequiredService<ILogger<Endpoints>>();
         logger.LogInformation("probe");
 
         Assert.Contains(logs.Records, r =>
-            r.Category == typeof(EndpointsMarker).FullName
+            r.Category == "Endpoints"
             && r.Level == LogLevel.Information
             && r.Message == "probe");
     }
