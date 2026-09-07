@@ -213,6 +213,8 @@ public record QueryRequest([Required] string Prompt, int? TopK);
 
 public sealed class Endpoints;
 
+public partial class Program;
+
 static class Defaults
 {
     public const int ChromaTimeoutSeconds = 30;
