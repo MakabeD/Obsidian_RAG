@@ -92,7 +92,7 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 app.MapPost("/session", (SessionRegistry registry) =>
     Results.Ok(new { sessionId = registry.Create() }));
 
-app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, ILogger<EndpointsMarker> logger, CancellationToken ct) =>
+app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, ILogger<Endpoints> logger, CancellationToken ct) =>
 {
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
@@ -111,7 +111,7 @@ app.MapPost("/session/{id}/md", async (
     ChromaService chroma,
     IOptions<RagOptions> options,
     HttpRequest request,
-    ILogger<EndpointsMarker> logger,
+    ILogger<Endpoints> logger,
     CancellationToken ct) =>
 {
     if (!registry.Exists(id))
@@ -156,7 +156,7 @@ app.MapPost("/session/{id}/query", async (
     ChromaService chroma,
     IOptions<RagOptions> options,
     QueryRequest body,
-    ILogger<EndpointsMarker> logger,
+    ILogger<Endpoints> logger,
     CancellationToken ct) =>
 {
     if (!registry.Exists(id))
@@ -211,7 +211,7 @@ static string ShortHash(string content)
 
 public record QueryRequest([Required] string Prompt, int? TopK);
 
-public sealed class EndpointsMarker;
+public sealed class Endpoints;
 
 static class Defaults
 {
