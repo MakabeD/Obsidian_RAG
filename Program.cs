@@ -44,6 +44,7 @@ RagOptions rag = new();
 ragSection.Bind(rag);
 
 builder.Services.AddSingleton<EmbeddingService>();
+builder.Services.AddSingleton<IEmbedder>(sp => sp.GetRequiredService<EmbeddingService>());
 builder.Services.AddSingleton<SessionRegistry>();
 builder.Services.AddHostedService<SessionSweeper>();
 
@@ -108,7 +109,7 @@ app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, IChro
 app.MapPost("/session/{id}/md", async (
     string id,
     SessionRegistry registry,
-    EmbeddingService embed,
+    IEmbedder embed,
     IChromaService chroma,
     IOptions<RagOptions> options,
     HttpRequest request,
@@ -153,7 +154,7 @@ app.MapPost("/session/{id}/md", async (
 app.MapPost("/session/{id}/query", async (
     string id,
     SessionRegistry registry,
-    EmbeddingService embed,
+    IEmbedder embed,
     IChromaService chroma,
     IOptions<RagOptions> options,
     QueryRequest body,

@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
+using chunker;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -16,9 +16,10 @@ public class QueryRequestValidationTests
         {
             builder.ConfigureServices(services =>
             {
-                RemoveAll(services, typeof(EmbeddingService));
-                services.AddSingleton<EmbeddingService>(_ =>
-                    (EmbeddingService)RuntimeHelpers.GetUninitializedObject(typeof(EmbeddingService)));
+                RemoveAll(services, typeof(IEmbedder));
+                RemoveAll(services, typeof(IChromaService));
+                services.AddSingleton<IEmbedder>(new StubEmbedder());
+                services.AddSingleton<IChromaService>(new StubChroma());
             });
         });
         HttpClient client = factory.CreateClient();
@@ -47,4 +48,24 @@ public class QueryRequestValidationTests
     }
 
     private sealed record SessionResponse(string SessionId);
+
+    private sealed class StubEmbedder : IEmbedder
+    {
+        public float[] Embed(string text) => [1f, 0f];
+
+        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
+    }
+
+    private sealed class StubChroma : IChromaService
+    {
+        public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task AddSessionRecordsAsync(string sessionId, List<ChromaDocument> documents, CancellationToken ct = default)
+            => Task.CompletedTask;
+
+        public Task<List<SearchResult>> QuerySessionAsync(string sessionId, float[] queryEmbedding, int topK, CancellationToken ct = default)
+            => Task.FromResult(new List<SearchResult>());
+
+        public Task TerminateSessionAsync(string sessionId, CancellationToken ct = default) => Task.CompletedTask;
+    }
 }
