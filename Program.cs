@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text;
 using chunker;
@@ -6,6 +5,7 @@ using configuration;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using vaultReader;
@@ -64,7 +64,7 @@ builder.Services.Configure<FormOptions>(o =>
 {
     o.MultipartBodyLengthLimit = rag.MaxUploadBytes;
 });
-builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(o =>
+builder.Services.Configure<KestrelServerOptions>(o =>
 {
     o.Limits.MaxRequestBodySize = rag.MaxUploadBytes;
 });
@@ -209,7 +209,7 @@ static string ShortHash(string content)
     return Convert.ToHexString(hash, 0, 4).ToLowerInvariant();
 }
 
-public record QueryRequest([Required] string Prompt, int? TopK);
+public record QueryRequest(string Prompt, int? TopK);
 
 public sealed class Endpoints;
 
