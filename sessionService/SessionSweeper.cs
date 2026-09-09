@@ -1,7 +1,7 @@
 using configuration;
 using Microsoft.Extensions.Options;
 
-public class SessionSweeper(SessionRegistry registry, ChromaService chroma, IOptions<RagOptions> options, ILogger<SessionSweeper> logger) : BackgroundService
+public class SessionSweeper(SessionRegistry registry, IChromaService chroma, IOptions<RagOptions> options, ILogger<SessionSweeper> logger) : BackgroundService
 {
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(Math.Max(5, options.Value.SweepIntervalSeconds));
 

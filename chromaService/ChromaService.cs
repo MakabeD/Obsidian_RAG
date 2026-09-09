@@ -22,7 +22,7 @@ public record SearchResult(
     float Distance
 );
 
-public class ChromaService
+public class ChromaService : IChromaService
 {
     private readonly HttpClient _httpClient;
     private readonly string _collectionName;

@@ -52,6 +52,7 @@ builder.Services.AddHttpClient<ChromaService>(c =>
     c.BaseAddress = new Uri(rag.ChromaBaseUrl);
     c.Timeout = TimeSpan.FromSeconds(Defaults.ChromaTimeoutSeconds);
 });
+builder.Services.AddSingleton<IChromaService>(sp => sp.GetRequiredService<ChromaService>());
 
 builder.Services.AddHealthChecks()
     .AddCheck<ChromaHealthCheck>("chroma", tags: new[] { "ready" })
@@ -92,7 +93,7 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 app.MapPost("/session", (SessionRegistry registry) =>
     Results.Ok(new { sessionId = registry.Create() }));
 
-app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, ChromaService chroma, ILogger<Endpoints> logger, CancellationToken ct) =>
+app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, IChromaService chroma, ILogger<Endpoints> logger, CancellationToken ct) =>
 {
     if (!registry.Exists(id))
         return Results.NotFound(new { error = "Session not found" });
@@ -108,7 +109,7 @@ app.MapPost("/session/{id}/md", async (
     string id,
     SessionRegistry registry,
     EmbeddingService embed,
-    ChromaService chroma,
+    IChromaService chroma,
     IOptions<RagOptions> options,
     HttpRequest request,
     ILogger<Endpoints> logger,
@@ -153,7 +154,7 @@ app.MapPost("/session/{id}/query", async (
     string id,
     SessionRegistry registry,
     EmbeddingService embed,
-    ChromaService chroma,
+    IChromaService chroma,
     IOptions<RagOptions> options,
     QueryRequest body,
     ILogger<Endpoints> logger,
