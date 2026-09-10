@@ -2,7 +2,7 @@
 using vaultReader;
 namespace chunker
 {
-    public class Chunker:IChunker
+    public class Chunker
     {
         public static IEnumerable<DocumentChunk> Chunking(DocumentData document, int characterThreshold)
         {
