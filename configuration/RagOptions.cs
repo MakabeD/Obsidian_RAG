@@ -9,6 +9,7 @@ public class RagOptions
     public int MaxTokenLength { get; set; } = 512;
 
     public string ChromaBaseUrl { get; set; } = "http://127.0.0.1:8000";
+    public int ChromaTimeoutSeconds { get; set; } = 30;
     public string ChromaTenant { get; set; } = "default_tenant";
     public string ChromaDatabase { get; set; } = "default_database";
     public string CollectionName { get; set; } = "vault_collection";
