@@ -35,7 +35,9 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
             type = $"https://httpstatuses.io/{status}",
             title,
             status,
-            detail = exception.Message,
+            detail = status == StatusCodes.Status500InternalServerError
+                ? "An unexpected error occurred."
+                : exception.Message,
             traceId = httpContext.TraceIdentifier
         }, cancellationToken);
 
