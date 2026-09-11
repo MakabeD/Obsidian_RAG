@@ -44,7 +44,7 @@ namespace chunker
                         foreach (DocumentChunk dc in Emit(chunk.ToString())) yield return dc;
                         chunk.Clear();
                     }
-                    chunk.Append('#').Append(line.TrimStart('#'));
+                    chunk.Append(line);
                 }
                 else
                 {
