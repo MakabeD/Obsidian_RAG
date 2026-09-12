@@ -10,17 +10,17 @@ public class SessionSweeper(SessionRegistry registry, IChromaService chroma, IOp
         using PeriodicTimer timer = new(_interval);
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
-            foreach (string sessionId in registry.GetExpired())
+            foreach (string sessionId in registry.PopExpired())
             {
                 try
                 {
                     await chroma.InitializeAsync(stoppingToken);
                     await chroma.TerminateSessionAsync(sessionId, stoppingToken);
-                    registry.Remove(sessionId);
                     logger.LogInformation("Session {SessionId} expired and removed from Chroma", sessionId);
                 }
                 catch (Exception ex)
                 {
+                    registry.Reinstate(sessionId);
                     logger.LogError(ex, "Could not clean up expired session {SessionId}; retrying in the next cycle.", sessionId);
                 }
             }
