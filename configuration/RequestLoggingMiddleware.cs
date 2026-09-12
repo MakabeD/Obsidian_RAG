@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace configuration;
 
-public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
+public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger, RecentRequestLog recentRequests)
 {
     private const string RequestIdHeader = "X-Request-Id";
 
@@ -38,6 +38,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
             finally
             {
                 stopwatch.Stop();
+                recentRequests.Add(requestId, context.Request.Method, context.Request.Path.Value ?? string.Empty, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
                 int status = context.Response.StatusCode;
                 if (status >= 500)
                 {

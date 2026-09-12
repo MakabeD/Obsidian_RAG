@@ -54,6 +54,7 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddSingleton<RecentRequestLog>();
 
 builder.Services.Configure<FormOptions>(o =>
 {
@@ -71,6 +72,8 @@ app.UseStatusCodePages();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.MapGet("/siu", () => Results.Ok(new { status = "ok" }));
+
+app.MapGet("/diagnostics/requests", (RecentRequestLog log) => Results.Ok(log.Snapshot()));
 
 app.MapHealthChecks("/healthz/live", new HealthCheckOptions
 {
