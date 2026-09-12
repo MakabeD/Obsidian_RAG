@@ -26,7 +26,7 @@ Located under `.opencode/skills/`:
 
 - `chromaService/` — `ChromaService` (HTTP client to Chroma), health checks, the global exception handler, request logging, and `RagOptions`.
 - `sessionService/` — `SessionRegistry` (in-memory id → `SessionState`) and `SessionSweeper` (background TTL sweeper).
-- `model/` — the ONNX model and vocab file. **Gitignored.** LFS or external download required.
+- `model/` — `vocab.txt` is tracked; the 90 MB `model.onnx` is gitignored and downloaded from Hugging Face (see README).
 - `inputing/` — `VaultReader` (zip → `DocumentData` stream), the chunker, and the embedding adapter.
 - `configuration/` — additional config glue. Empty or trivial at the moment.
 - `chromadb/` — `docker-compose.yml` for a local Chroma instance.

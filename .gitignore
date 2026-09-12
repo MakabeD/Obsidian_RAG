@@ -1,4 +1,4 @@
-# Archivos de compilación y compiladores
+# Build and compiler files
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -12,12 +12,12 @@ x86/
 *.err
 *.wrn
 
-# Carpetas de paquetes de NuGet
+# NuGet package folders
 **/packages/*
 !**/packages/build/
 **/nuget.exe
 
-# Archivos de Visual Studio
+# Visual Studio files
 *.suo
 *.user
 *.userosscache
@@ -25,4 +25,6 @@ x86/
 *.csproj.DotSettings
 .vs/
 
-model
+# Model assets not tracked by Git (model.onnx is downloaded from Hugging Face, see README)
+model/model.onnx
+model/RAG.zip
