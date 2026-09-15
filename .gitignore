@@ -28,3 +28,6 @@ x86/
 # Model assets not tracked by Git (model.onnx is downloaded from Hugging Face, see README)
 model/model.onnx
 model/RAG.zip
+
+/.opencode
+AGENTS.md
