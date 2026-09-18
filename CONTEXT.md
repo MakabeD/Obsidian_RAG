@@ -9,7 +9,7 @@
 ## Glossary
 
 ### Vault
-A user's Obsidian vault: a folder of `.md` files (plus assets) that gets uploaded as a single zip. The service treats it as a **read-only** blob of documents; the on-disk shape (linked notes, frontmatter, tags, `[[wikilinks]]`) is preserved as part of the document text but not parsed beyond chunking.
+A user's Obsidian vault: a folder of `.md` files (plus assets) that gets uploaded as a single zip. The service treats it as a **read-only** blob of documents; the on-disk shape (linked notes, frontmatter, tags, `[[wikilinks]]`) is preserved as part of the document text but not parsed beyond chunking. Uploads are bounded per **request**: the sum of decompressed bytes across every file in one request (all zips and raw `.md` files alike) must stay under `Rag.MaxZipTotalUncompressedBytes` — not per zip archive.
 
 ### Document
 A single Markdown file extracted from a vault. After upload, a `Document` is the unit of source attribution: a chunk carries the `Document`'s filename and an in-document index.
@@ -35,5 +35,6 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-18: `MaxZipTotalUncompressedBytes` is now enforced per request (all files combined), not per zip; raw `.md` uploads count toward the total (fixes the multi-zip cap bypass, issue #1).
 - 2026-09-11: corrected Session / "Session-scoped collection" to describe the implemented design (one shared collection, `session_id` metadata isolation) and recorded it in ADR-0001.
 - 2026-09-01: skeleton created during port of `mattpocock/skills` to opencode. Terms inferred from `Program.cs` and `appsettings.json`; not yet signed off by the maintainer. Treat as draft.

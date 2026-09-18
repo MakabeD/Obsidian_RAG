@@ -21,6 +21,7 @@ namespace vaultReader
         {
             RagOptions opts = options.Value;
             List<DocumentData> processedFiles = new();
+            UncompressedAccumulator accumulator = new(opts.MaxZipTotalUncompressedBytes);
 
             foreach (IFormFile file in files)
             {
@@ -39,11 +40,12 @@ namespace vaultReader
 
                 if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    processedFiles.AddRange(await GetMdFromZipAsync(file, opts));
+                    processedFiles.AddRange(await GetMdFromZipAsync(file, opts, accumulator));
                 }
                 else
                 {
                     processedFiles.Add(FileToString(file));
+                    accumulator.Add(file.Length);
                 }
             }
 
@@ -63,7 +65,10 @@ namespace vaultReader
             };
         }
 
-        private static async Task<List<DocumentData>> GetMdFromZipAsync(IFormFile file, RagOptions opts)
+        private static async Task<List<DocumentData>> GetMdFromZipAsync(
+            IFormFile file,
+            RagOptions opts,
+            UncompressedAccumulator accumulator)
         {
             List<DocumentData> processedZip = new();
 
@@ -75,8 +80,6 @@ namespace vaultReader
                 throw new UnsafeZipException(
                     $"Zip contains {zip.Entries.Count} entries; the limit is {opts.MaxZipEntries}.");
             }
-
-            long totalUncompressed = 0;
 
             foreach (ZipArchiveEntry entry in zip.Entries)
             {
@@ -114,12 +117,7 @@ namespace vaultReader
                 long entrySize = ms.Length;
                 ms.Position = 0;
 
-                totalUncompressed += entrySize;
-                if (totalUncompressed > opts.MaxZipTotalUncompressedBytes)
-                {
-                    throw new UnsafeZipException(
-                        $"Zip exceeds the total uncompressed limit of {opts.MaxZipTotalUncompressedBytes} bytes.");
-                }
+                accumulator.Add(entrySize);
 
                 using StreamReader reader = new(ms, leaveOpen: true);
                 string content = await reader.ReadToEndAsync();
@@ -181,6 +179,28 @@ namespace vaultReader
             }
 
             return sb.ToString();
+        }
+
+        private sealed class UncompressedAccumulator
+        {
+            private long _remaining;
+            private readonly long _limit;
+
+            public UncompressedAccumulator(long limit)
+            {
+                _limit = limit;
+                _remaining = limit;
+            }
+
+            public void Add(long bytes)
+            {
+                _remaining -= bytes;
+                if (_remaining < 0)
+                {
+                    throw new UnsafeZipException(
+                        $"The request exceeds the total uncompressed limit of {_limit} bytes.");
+                }
+            }
         }
     }
 }
