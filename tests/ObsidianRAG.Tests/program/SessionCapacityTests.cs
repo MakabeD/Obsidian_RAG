@@ -17,8 +17,8 @@ public class SessionCapacityTests
                 builder.UseSetting("Rag:MaxConcurrentSessions", "2");
                 builder.ConfigureServices(services =>
                 {
-                    RemoveAll(services, typeof(IChromaService));
-                    services.AddSingleton<IChromaService>(new StubChroma());
+                    TestSupport.RemoveAll(services, typeof(IChromaService));
+                    services.AddSingleton<IChromaService>(new TestSupport.StubChroma());
                 });
             });
         HttpClient client = factory.CreateClient();
@@ -34,8 +34,8 @@ public class SessionCapacityTests
         string body = await third.Content.ReadAsStringAsync();
         Assert.Contains("Session capacity reached", body);
 
-        SessionResponse? firstSession = await first.Content.ReadFromJsonAsync<SessionResponse>();
-        SessionResponse? secondSession = await second.Content.ReadFromJsonAsync<SessionResponse>();
+        TestSupport.SessionResponse? firstSession = await first.Content.ReadFromJsonAsync<TestSupport.SessionResponse>();
+        TestSupport.SessionResponse? secondSession = await second.Content.ReadFromJsonAsync<TestSupport.SessionResponse>();
         Assert.NotNull(firstSession);
         Assert.NotNull(secondSession);
         Assert.NotEqual(firstSession!.SessionId, secondSession!.SessionId);
@@ -50,15 +50,15 @@ public class SessionCapacityTests
                 builder.UseSetting("Rag:MaxConcurrentSessions", "1");
                 builder.ConfigureServices(services =>
                 {
-                    RemoveAll(services, typeof(IChromaService));
-                    services.AddSingleton<IChromaService>(new StubChroma());
+                    TestSupport.RemoveAll(services, typeof(IChromaService));
+                    services.AddSingleton<IChromaService>(new TestSupport.StubChroma());
                 });
             });
         HttpClient client = factory.CreateClient();
 
         HttpResponseMessage created = await client.PostAsync("/session", content: null);
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
-        SessionResponse? session = await created.Content.ReadFromJsonAsync<SessionResponse>();
+        TestSupport.SessionResponse? session = await created.Content.ReadFromJsonAsync<TestSupport.SessionResponse>();
         Assert.NotNull(session);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.PostAsync("/session", content: null)).StatusCode);
 
@@ -67,29 +67,5 @@ public class SessionCapacityTests
 
         HttpResponseMessage recreated = await client.PostAsync("/session", content: null);
         Assert.Equal(HttpStatusCode.OK, recreated.StatusCode);
-    }
-
-    private static void RemoveAll(IServiceCollection services, Type t)
-    {
-        for (int i = services.Count - 1; i >= 0; i--)
-        {
-            if (services[i].ServiceType == t)
-                services.RemoveAt(i);
-        }
-    }
-
-    private sealed record SessionResponse(string SessionId);
-
-    private sealed class StubChroma : IChromaService
-    {
-        public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
-
-        public Task AddSessionRecordsAsync(string sessionId, List<ChromaDocument> documents, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task<List<SearchResult>> QuerySessionAsync(string sessionId, float[] queryEmbedding, int topK, CancellationToken ct = default)
-            => Task.FromResult(new List<SearchResult>());
-
-        public Task TerminateSessionAsync(string sessionId, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

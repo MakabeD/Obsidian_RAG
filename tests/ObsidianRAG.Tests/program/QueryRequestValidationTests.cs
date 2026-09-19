@@ -16,17 +16,17 @@ public class QueryRequestValidationTests
         {
             builder.ConfigureServices(services =>
             {
-                RemoveAll(services, typeof(IEmbedder));
-                RemoveAll(services, typeof(IChromaService));
+                TestSupport.RemoveAll(services, typeof(IEmbedder));
+                TestSupport.RemoveAll(services, typeof(IChromaService));
                 services.AddSingleton<IEmbedder>(new StubEmbedder());
-                services.AddSingleton<IChromaService>(new StubChroma());
+                services.AddSingleton<IChromaService>(new TestSupport.StubChroma());
             });
         });
         HttpClient client = factory.CreateClient();
 
         HttpResponseMessage created = await client.PostAsync("/session", content: null);
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
-        SessionResponse? session = await created.Content.ReadFromJsonAsync<SessionResponse>();
+        TestSupport.SessionResponse? session = await created.Content.ReadFromJsonAsync<TestSupport.SessionResponse>();
         Assert.NotNull(session);
 
         HttpResponseMessage response = await client.PostAsJsonAsync(
@@ -38,34 +38,10 @@ public class QueryRequestValidationTests
         Assert.Contains("Prompt cannot be empty", body);
     }
 
-    private static void RemoveAll(IServiceCollection services, Type t)
-    {
-        for (int i = services.Count - 1; i >= 0; i--)
-        {
-            if (services[i].ServiceType == t)
-                services.RemoveAt(i);
-        }
-    }
-
-    private sealed record SessionResponse(string SessionId);
-
     private sealed class StubEmbedder : IEmbedder
     {
         public float[] Embed(string text) => [1f, 0f];
 
         public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
-    }
-
-    private sealed class StubChroma : IChromaService
-    {
-        public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
-
-        public Task AddSessionRecordsAsync(string sessionId, List<ChromaDocument> documents, CancellationToken ct = default)
-            => Task.CompletedTask;
-
-        public Task<List<SearchResult>> QuerySessionAsync(string sessionId, float[] queryEmbedding, int topK, CancellationToken ct = default)
-            => Task.FromResult(new List<SearchResult>());
-
-        public Task TerminateSessionAsync(string sessionId, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

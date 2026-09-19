@@ -23,8 +23,8 @@ public class ZipUploadTests
                 builder.UseSetting("Rag:MaxZipTotalUncompressedBytes", "100");
                 builder.ConfigureServices(services =>
                 {
-                    RemoveAll(services, typeof(IEmbedder));
-                    RemoveAll(services, typeof(IChromaService));
+                    TestSupport.RemoveAll(services, typeof(IEmbedder));
+                    TestSupport.RemoveAll(services, typeof(IChromaService));
                     services.AddSingleton<IEmbedder>(embedder);
                     services.AddSingleton<IChromaService>(chroma);
                 });
@@ -33,7 +33,7 @@ public class ZipUploadTests
 
         HttpResponseMessage created = await client.PostAsync("/session", content: null);
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
-        SessionResponse? session = await created.Content.ReadFromJsonAsync<SessionResponse>();
+        TestSupport.SessionResponse? session = await created.Content.ReadFromJsonAsync<TestSupport.SessionResponse>();
         Assert.NotNull(session);
 
         using MultipartFormDataContent form = new();
@@ -57,15 +57,6 @@ public class ZipUploadTests
         Assert.Equal(0, chroma.AddCalls);
     }
 
-    private static void RemoveAll(IServiceCollection services, Type t)
-    {
-        for (int i = services.Count - 1; i >= 0; i--)
-        {
-            if (services[i].ServiceType == t)
-                services.RemoveAt(i);
-        }
-    }
-
     private static byte[] MakeZip(params (string Name, string Content)[] entries)
     {
         using MemoryStream stream = new();
@@ -81,8 +72,6 @@ public class ZipUploadTests
 
         return stream.ToArray();
     }
-
-    private sealed record SessionResponse(string SessionId);
 
     private sealed class CountingEmbedder : IEmbedder
     {
