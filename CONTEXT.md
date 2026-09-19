@@ -21,7 +21,7 @@ A contiguous slice of a `Document`, bounded by `Rag.ChunkThreshold` (default 600
 A fixed-length float vector produced by the local ONNX model (`model/model.onnx` + `model/vocab.txt`). The service does not call any external embedding API. Embeddings are non-deterministic across model versions, so tests against real embeddings must use a pinned model and a tolerance, not a snapshot.
 
 ### Session
-A client-scoped namespace inside the single shared Chroma collection. The client creates a session via `POST /session`, receives a `sessionId`, uploads vault(s) into it, queries it, and either lets it expire (`SessionTtlMinutes`, default 10) or terminates it via `DELETE /session/{id}`. Sessions are **not** persistent across restarts: the sweeper deletes idle sessions' records via a metadata filter. A session owns **no** Chroma collection of its own — see ADR-0001.
+A client-scoped namespace inside the single shared Chroma collection. The client creates a session via `POST /session`, receives a `sessionId`, uploads vault(s) into it, queries it, and either lets it expire (`SessionTtlMinutes`, default 10) or terminates it via `DELETE /session/{id}`. Sessions are **not** persistent across restarts: the sweeper deletes idle sessions' records via a metadata filter. A session owns **no** Chroma collection of its own — see ADR-0001. The registry caps live sessions at `Rag.MaxConcurrentSessions` (default 1000); `POST /session` rejects with **503** when the cap is reached rather than evicting live sessions.
 
 ### Session scope
 The set of records in the shared collection whose `session_id` metadata equals the session's id. Every operation on Chroma (add, query, delete) must carry this filter; it is the only boundary between sessions. Records carry the synthetic chunk id (`{sessionId}_{fileName}_{shortHash}_{index}`) so the service can compute ids without a round-trip and so the same chunk uploaded twice into the same session deduplicates.
@@ -35,6 +35,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-19: `POST /session` now rejects with 503 once `MaxConcurrentSessions` (new, default 1000) live sessions are registered; `SessionRegistry.Create` became `TryCreate` (fixes the unbounded-registry OOM, issue #2).
 - 2026-09-18: `MaxZipTotalUncompressedBytes` is now enforced per request (all files combined), not per zip; raw `.md` uploads count toward the total (fixes the multi-zip cap bypass, issue #1).
 - 2026-09-11: corrected Session / "Session-scoped collection" to describe the implemented design (one shared collection, `session_id` metadata isolation) and recorded it in ADR-0001.
 - 2026-09-01: skeleton created during port of `mattpocock/skills` to opencode. Terms inferred from `Program.cs` and `appsettings.json`; not yet signed off by the maintainer. Treat as draft.

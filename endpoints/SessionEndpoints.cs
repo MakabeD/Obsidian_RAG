@@ -9,7 +9,11 @@ public static class SessionEndpoints
     public static void MapSessionEndpoints(this WebApplication app)
     {
         app.MapPost("/session", (SessionRegistry registry) =>
-            Results.Ok(new { sessionId = registry.Create() }));
+            registry.TryCreate(out string sessionId)
+                ? Results.Ok(new { sessionId })
+                : Results.Json(
+                    new { error = "Session capacity reached; try again later." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable));
 
         app.MapDelete("/session/{id}", async (string id, SessionRegistry registry, IChromaService chroma, ILogger<Endpoints> logger, CancellationToken ct) =>
         {

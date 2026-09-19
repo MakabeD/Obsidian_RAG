@@ -58,6 +58,9 @@ public class RagOptions
     public int SessionTtlMinutes { get; set; } = 10;
 
     [Range(1, int.MaxValue)]
+    public int MaxConcurrentSessions { get; set; } = 1000;
+
+    [Range(1, int.MaxValue)]
     public int SweepIntervalSeconds { get; set; } = 30;
 
     [Range(1, int.MaxValue)]

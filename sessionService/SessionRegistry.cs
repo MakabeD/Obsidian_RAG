@@ -8,21 +8,34 @@ public class SessionRegistry
     private readonly PriorityQueue<string, DateTime> _expiry = new();
     private readonly object _lock = new();
     private readonly TimeSpan _ttl;
+    private readonly int _maxSessions;
     private readonly TimeProvider _time;
 
     public SessionRegistry(IOptions<RagOptions> options, TimeProvider? timeProvider = null)
     {
         _ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.SessionTtlMinutes));
+        _maxSessions = Math.Max(1, options.Value.MaxConcurrentSessions);
         _time = timeProvider ?? TimeProvider.System;
     }
 
-    public string Create()
+    public bool TryCreate(out string sessionId)
     {
         string id = Guid.NewGuid().ToString("N");
         DateTime now = UtcNow();
-        _lastSeen[id] = now;
-        Schedule(id, now);
-        return id;
+        lock (_lock)
+        {
+            if (_lastSeen.Count >= _maxSessions)
+            {
+                sessionId = string.Empty;
+                return false;
+            }
+
+            _lastSeen[id] = now;
+            Schedule(id, now);
+        }
+
+        sessionId = id;
+        return true;
     }
 
     public bool Exists(string sessionId) => _lastSeen.ContainsKey(sessionId);
