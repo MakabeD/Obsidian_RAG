@@ -1,6 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace ObsidianRAG.Tests.program;
+
+[CollectionDefinition(nameof(WebHost))]
+public sealed class WebHost;
 
 internal static class TestSupport
 {

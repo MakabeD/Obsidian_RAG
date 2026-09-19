@@ -5,6 +5,7 @@ using Xunit;
 
 namespace ObsidianRAG.Tests.program;
 
+[Collection(nameof(WebHost))]
 public class EndpointLoggerCategoryTests
 {
     [Fact]

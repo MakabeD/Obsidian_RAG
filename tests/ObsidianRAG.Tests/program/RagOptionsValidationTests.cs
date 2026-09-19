@@ -6,6 +6,7 @@ using Xunit;
 
 namespace ObsidianRAG.Tests.program;
 
+[Collection(nameof(WebHost))]
 public class RagOptionsValidationTests
 {
     [Fact]
