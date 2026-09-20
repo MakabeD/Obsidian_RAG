@@ -10,6 +10,7 @@ public class EmbeddingService : IEmbedder, IDisposable
     private readonly InferenceSession _session;
     private readonly WordPieceTokenizer _tokenizer;
     private readonly int _maxTokenLength;
+    private readonly int _batchSize;
     private readonly ILogger<EmbeddingService> _logger;
     private readonly RagOptions _opts;
 
@@ -18,6 +19,7 @@ public class EmbeddingService : IEmbedder, IDisposable
         _opts = options.Value;
         _logger = logger;
         _maxTokenLength = _opts.MaxTokenLength;
+        _batchSize = Math.Max(1, _opts.EmbedBatchSize);
 
         using var vocabStream = File.OpenRead(_opts.VocabPath);
         _tokenizer = WordPieceTokenizer.Create(vocabStream);
@@ -32,59 +34,86 @@ public class EmbeddingService : IEmbedder, IDisposable
 
     public float[] Embed(string text)
     {
-        IReadOnlyList<int> rawTokenIds = _tokenizer.EncodeToIds(text);
+        long[] ids = TokenizeToWrappedIds(text);
 
-        int maxContent = Math.Max(1, _maxTokenLength - 2);
-        if (rawTokenIds.Count > maxContent)
-        {
-            _logger.LogWarning("Truncating text from {Original} to {Max} tokens for embedding", rawTokenIds.Count, _maxTokenLength);
-            rawTokenIds = rawTokenIds.Take(maxContent).ToList();
-        }
-
-        long[] idsArray = new long[rawTokenIds.Count + 2];
-        idsArray[0] = 101;
-        for (int i = 0; i < rawTokenIds.Count; i++) idsArray[i + 1] = rawTokenIds[i];
-        idsArray[^1] = 102;
-
-        int sequenceLength = idsArray.Length;
-        long[] attentionMask = Enumerable.Repeat(1L, sequenceLength).ToArray();
-        int batchSize = 1;
-
-        var inputIdsTensor = new DenseTensor<long>(idsArray, new[] { batchSize, sequenceLength });
-        var attentionMaskTensor = new DenseTensor<long>(attentionMask, new[] { batchSize, sequenceLength });
-        var tokenTypesIdsTensor = new DenseTensor<long>(new long[sequenceLength], new[] { batchSize, sequenceLength });
-
-        var inputs = new List<NamedOnnxValue>
-        {
-            NamedOnnxValue.CreateFromTensor("input_ids", inputIdsTensor),
-            NamedOnnxValue.CreateFromTensor("attention_mask", attentionMaskTensor),
-            NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypesIdsTensor),
-        };
+        var inputs = BuildSessionInputs([ids]);
 
         using var result = _session.Run(inputs);
         var outputTensor = result.First().AsTensor<float>();
-        int hiddenSize = outputTensor.Dimensions[2];
 
-        float[] embedding = new float[hiddenSize];
-        for (int i = 0; i < sequenceLength; i++)
-        {
-            for (int j = 0; j < hiddenSize; j++)
-            {
-                embedding[j] += outputTensor[0, i, j];
-            }
-        }
-        for (int j = 0; j < hiddenSize; j++) embedding[j] /= sequenceLength;
-
-        return embedding;
+        return EmbeddingBatching.MeanPool(outputTensor, [ids.Length]).Single();
     }
 
     public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
     {
-        foreach (var doc in documents)
+        List<(DocumentChunk Chunk, long[] Ids)> buffer = new(_batchSize);
+        foreach (DocumentChunk doc in documents)
         {
-            doc.Embedding = Embed(doc.Content);
-            yield return doc;
+            buffer.Add((doc, TokenizeToWrappedIds(doc.Content)));
+            if (buffer.Count == _batchSize)
+            {
+                foreach (DocumentChunk chunk in EmbedBatch(buffer))
+                {
+                    yield return chunk;
+                }
+
+                buffer.Clear();
+            }
         }
+
+        if (buffer.Count > 0)
+        {
+            foreach (DocumentChunk chunk in EmbedBatch(buffer))
+            {
+                yield return chunk;
+            }
+        }
+    }
+
+    private IEnumerable<DocumentChunk> EmbedBatch(List<(DocumentChunk Chunk, long[] Ids)> batch)
+    {
+        var inputs = BuildSessionInputs(batch.Select(x => x.Ids).ToArray());
+
+        using var result = _session.Run(inputs);
+        var outputTensor = result.First().AsTensor<float>();
+
+        float[][] pooled = EmbeddingBatching.MeanPool(
+            outputTensor,
+            batch.Select(x => x.Ids.Length).ToArray());
+
+        for (int i = 0; i < batch.Count; i++)
+        {
+            batch[i].Chunk.Embedding = pooled[i];
+        }
+
+        return batch.Select(x => x.Chunk);
+    }
+
+    private List<NamedOnnxValue> BuildSessionInputs(long[][] ids)
+    {
+        (DenseTensor<long> inputIds, DenseTensor<long> attentionMask, DenseTensor<long> tokenTypeIds) =
+            EmbeddingBatching.BuildInputs(ids);
+
+        return
+        [
+            NamedOnnxValue.CreateFromTensor("input_ids", inputIds),
+            NamedOnnxValue.CreateFromTensor("attention_mask", attentionMask),
+            NamedOnnxValue.CreateFromTensor("token_type_ids", tokenTypeIds),
+        ];
+    }
+
+    private long[] TokenizeToWrappedIds(string text)
+    {
+        IReadOnlyList<int> rawTokenIds = _tokenizer.EncodeToIds(text);
+
+        if (rawTokenIds.Count > Math.Max(1, _maxTokenLength - 2))
+        {
+            _logger.LogWarning(
+                "Truncating text from {Original} to {Max} tokens for embedding",
+                rawTokenIds.Count, _maxTokenLength);
+        }
+
+        return EmbeddingBatching.WrapAndTruncate(rawTokenIds, _maxTokenLength);
     }
 
     public void Dispose()

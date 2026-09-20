@@ -48,8 +48,17 @@ public static class SessionEndpoints
             if (documents.Count == 0)
                 return Results.BadRequest(new { error = "No actionable documents were found." });
 
-            List<DocumentChunk> chunks = embed
-                .EmbeddRange(Chunker.Chunking(documents, opts.ChunkThreshold))
+            List<DocumentChunk> chunks = [.. Chunker.Chunking(documents, opts.ChunkThreshold)];
+            if (chunks.Count > opts.MaxChunkCount)
+            {
+                return Results.BadRequest(new
+                {
+                    error = $"Upload produces {chunks.Count} chunks, exceeding the limit of {opts.MaxChunkCount}. Split the vault into smaller uploads."
+                });
+            }
+
+            chunks = embed
+                .EmbeddRange(chunks)
                 .ToList();
 
             chunks = ChunkIdRewriter.RewriteChunkIds(chunks, id);

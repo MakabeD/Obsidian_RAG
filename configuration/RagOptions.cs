@@ -15,6 +15,9 @@ public class RagOptions
     [Range(1, 100_000)]
     public int MaxTokenLength { get; set; } = 512;
 
+    [Range(1, 256)]
+    public int EmbedBatchSize { get; set; } = 32;
+
     [Required]
     public string ChromaBaseUrl { get; set; } = "http://127.0.0.1:8000";
 
@@ -53,6 +56,9 @@ public class RagOptions
 
     [Range(1, 10_000)]
     public int MaxZipCompressionRatio { get; set; } = 100;
+
+    [Range(1, 1_000_000)]
+    public int MaxChunkCount { get; set; } = 20_000;
 
     [Range(1, int.MaxValue)]
     public int SessionTtlMinutes { get; set; } = 10;

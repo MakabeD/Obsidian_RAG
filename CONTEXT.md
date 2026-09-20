@@ -15,10 +15,10 @@ A user's Obsidian vault: a folder of `.md` files (plus assets) that gets uploade
 A single Markdown file extracted from a vault. After upload, a `Document` is the unit of source attribution: a chunk carries the `Document`'s filename and an in-document index.
 
 ### Chunk
-A contiguous slice of a `Document`, bounded by `Rag.ChunkThreshold` (default 600 characters). Chunks are the unit of embedding and retrieval; a `Document` is the unit of attribution.
+A contiguous slice of a `Document`, bounded by `Rag.ChunkThreshold` (default 600 characters). Chunks are the unit of embedding and retrieval; a `Document` is the unit of attribution. An upload is rejected (400) before any embedding runs when chunking produces more than `Rag.MaxChunkCount` chunks (default 20 000) — the bound that keeps worst-case inference time finite.
 
 ### Embedding
-A fixed-length float vector produced by the local ONNX model (`model/model.onnx` + `model/vocab.txt`). The service does not call any external embedding API. Embeddings are non-deterministic across model versions, so tests against real embeddings must use a pinned model and a tolerance, not a snapshot.
+A fixed-length float vector produced by the local ONNX model (`model/model.onnx` + `model/vocab.txt`). The service does not call any external embedding API. Upload chunks are embedded in batches of `Rag.EmbedBatchSize` (default 32) with dynamic padding; a one-row batch is bit-identical to the historical single-chunk path. On CPU the transformer is compute-bound (measured: batching is throughput-neutral), so the meaningful latency bound is `MaxChunkCount`, not batching. Embeddings are non-deterministic across model versions, so tests against real embeddings must use a pinned model and a tolerance, not a snapshot.
 
 ### Session
 A client-scoped namespace inside the single shared Chroma collection. The client creates a session via `POST /session`, receives a `sessionId`, uploads vault(s) into it, queries it, and either lets it expire (`SessionTtlMinutes`, default 10) or terminates it via `DELETE /session/{id}`. Sessions are **not** persistent across restarts: the sweeper deletes idle sessions' records via a metadata filter. A session owns **no** Chroma collection of its own — see ADR-0001. The registry caps live sessions at `Rag.MaxConcurrentSessions` (default 1000); `POST /session` rejects with **503** when the cap is reached rather than evicting live sessions.
@@ -35,6 +35,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-20: chunks embed in batches of `EmbedBatchSize` (new, default 32; measured throughput-neutral on CPU — the model is compute-bound) and uploads are rejected with 400 above `MaxChunkCount` (new, default 20 000) before any embedding runs (issue #3).
 - 2026-09-19: `POST /session` now rejects with 503 once `MaxConcurrentSessions` (new, default 1000) live sessions are registered; `SessionRegistry.Create` became `TryCreate` (fixes the unbounded-registry OOM, issue #2).
 - 2026-09-18: `MaxZipTotalUncompressedBytes` is now enforced per request (all files combined), not per zip; raw `.md` uploads count toward the total (fixes the multi-zip cap bypass, issue #1).
 - 2026-09-11: corrected Session / "Session-scoped collection" to describe the implemented design (one shared collection, `session_id` metadata isolation) and recorded it in ADR-0001.
