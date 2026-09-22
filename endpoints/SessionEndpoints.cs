@@ -37,9 +37,8 @@ public static class SessionEndpoints
             ILogger<Endpoints> logger,
             CancellationToken ct) =>
         {
-            if (!registry.Exists(id))
+            if (!registry.Touch(id))
                 return Results.NotFound(new { error = "Session not found" });
-            registry.Touch(id);
 
             RagOptions opts = options.Value;
             IFormCollection form = await request.ReadFormAsync(ct);
@@ -74,6 +73,11 @@ public static class SessionEndpoints
                 }
             )).ToList();
 
+            if (!registry.Touch(id))
+            {
+                return Results.NotFound(new { error = "Session expired during upload; start a new session." });
+            }
+
             await chroma.InitializeAsync(ct);
             await chroma.AddSessionRecordsAsync(id, docs, ct);
             logger.LogInformation("Session {SessionId} stored {Count} chunks", id, docs.Count);
@@ -91,9 +95,8 @@ public static class SessionEndpoints
             ILogger<Endpoints> logger,
             CancellationToken ct) =>
         {
-            if (!registry.Exists(id))
+            if (!registry.Touch(id))
                 return Results.NotFound(new { error = "Session not found" });
-            registry.Touch(id);
 
             RagOptions opts = options.Value;
             int topK = body.TopK ?? opts.DefaultTopK;

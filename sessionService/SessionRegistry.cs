@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 public class SessionRegistry
 {
     private readonly ConcurrentDictionary<string, DateTime> _lastSeen = new();
+    private readonly HashSet<string> _expiring = new();
+    private readonly HashSet<string> _deleting = new();
     private readonly PriorityQueue<string, DateTime> _expiry = new();
     private readonly object _lock = new();
     private readonly TimeSpan _ttl;
@@ -40,14 +42,39 @@ public class SessionRegistry
 
     public bool Exists(string sessionId) => _lastSeen.ContainsKey(sessionId);
 
-    public void Touch(string sessionId)
+    public virtual bool Touch(string sessionId)
     {
         DateTime now = UtcNow();
-        _lastSeen[sessionId] = now;
-        Schedule(sessionId, now);
+        lock (_lock)
+        {
+            if (_lastSeen.ContainsKey(sessionId))
+            {
+                _lastSeen[sessionId] = now;
+                Schedule(sessionId, now);
+                return true;
+            }
+
+            if (_expiring.Remove(sessionId))
+            {
+                _lastSeen[sessionId] = now;
+                Schedule(sessionId, now);
+                return true;
+            }
+
+            return false;
+        }
     }
 
-    public bool Remove(string sessionId) => _lastSeen.TryRemove(sessionId, out _);
+    public bool Remove(string sessionId)
+    {
+        lock (_lock)
+        {
+            bool removed = _lastSeen.TryRemove(sessionId, out _);
+            _expiring.Remove(sessionId);
+            _deleting.Remove(sessionId);
+            return removed;
+        }
+    }
 
     public List<string> PopExpired()
     {
@@ -60,19 +87,48 @@ public class SessionRegistry
                 string id = _expiry.Dequeue();
                 if (_lastSeen.TryGetValue(id, out DateTime lastSeen) && now - lastSeen >= _ttl)
                 {
-                    if (_lastSeen.TryRemove(id, out _))
-                        expired.Add(id);
+                    _lastSeen.TryRemove(id, out _);
+                    _expiring.Add(id);
+                    expired.Add(id);
                 }
             }
         }
         return expired;
     }
 
-    public void Reinstate(string sessionId)
+    public bool TryClaimExpired(string sessionId)
+    {
+        lock (_lock)
+        {
+            if (_expiring.Remove(sessionId))
+            {
+                _deleting.Add(sessionId);
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    public void ConfirmDelete(string sessionId)
+    {
+        lock (_lock)
+        {
+            _deleting.Remove(sessionId);
+        }
+    }
+
+    public void FailDelete(string sessionId)
     {
         DateTime now = UtcNow();
-        _lastSeen[sessionId] = now;
-        Schedule(sessionId, now);
+        lock (_lock)
+        {
+            if (_deleting.Remove(sessionId))
+            {
+                _lastSeen[sessionId] = now;
+                Schedule(sessionId, now);
+            }
+        }
     }
 
     private void Schedule(string sessionId, DateTime now)

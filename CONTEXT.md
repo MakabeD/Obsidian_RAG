@@ -26,6 +26,9 @@ A client-scoped namespace inside the single shared Chroma collection. The client
 ### Session scope
 The set of records in the shared collection whose `session_id` metadata equals the session's id. Every operation on Chroma (add, query, delete) must carry this filter; it is the only boundary between sessions. Records carry the synthetic chunk id (`{sessionId}_{fileName}_{shortHash}_{index}`) so the service can compute ids without a round-trip and so the same chunk uploaded twice into the same session deduplicates.
 
+### Session expiry (three-state registry)
+`SessionRegistry` tracks each session in one of three states — alive (`_lastSeen`), popped-but-resurrectable (`_expiring`), and claimed-for-deletion (`_deleting`). `PopExpired` moves alive→expiring; a `Touch` **resurrects** an expiring session (upload mid-flight wins); `TryClaimExpired` moves expiring→deleting atomically and is what the sweeper gates its Chroma delete on. The `/md` endpoint Touches again **immediately before the Chroma add**, so a session claimed mid-upload fails that touch and returns 404 instead of a 200 whose vectors then get deleted — the two operations serialize under the registry lock, making "200 with vectors gone" impossible.
+
 ### Top-K
 The number of nearest chunks returned by `/query`. Bounded between 1 and `Rag.MaxTopK` (default 50). The client may pass an override; defaults to `Rag.DefaultTopK` (5).
 
@@ -35,6 +38,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-21: session registry is three-state (`_lastSeen`/`_expiring`/`_deleting`): a Touch resurrects a popped session, the sweeper claims before deleting (atomic vs. touch), and `/md` re-touches before the Chroma add — closes the sweep-vs-upload race that could return 200 then delete the just-uploaded vectors (issue #6).
 - 2026-09-20: chunks embed in batches of `EmbedBatchSize` (new, default 32; measured throughput-neutral on CPU — the model is compute-bound) and uploads are rejected with 400 above `MaxChunkCount` (new, default 20 000) before any embedding runs (issue #3).
 - 2026-09-19: `POST /session` now rejects with 503 once `MaxConcurrentSessions` (new, default 1000) live sessions are registered; `SessionRegistry.Create` became `TryCreate` (fixes the unbounded-registry OOM, issue #2).
 - 2026-09-18: `MaxZipTotalUncompressedBytes` is now enforced per request (all files combined), not per zip; raw `.md` uploads count toward the total (fixes the multi-zip cap bypass, issue #1).

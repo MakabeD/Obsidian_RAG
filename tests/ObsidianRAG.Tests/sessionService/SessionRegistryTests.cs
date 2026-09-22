@@ -85,14 +85,15 @@ _time.UtcNowValue = Base.AddMinutes(10);
     }
 
     [Fact]
-    public void Reinstate_puts_an_expired_session_back_until_ttl_elapses_again()
+    public void FailDelete_puts_a_claimed_session_back_until_ttl_elapses_again()
     {
         Assert.True(_registry.TryCreate(out string id));
 
         _time.UtcNowValue = Base.AddMinutes(11);
         Assert.Equal([id], _registry.PopExpired());
+        Assert.True(_registry.TryClaimExpired(id));
 
-        _registry.Reinstate(id);
+        _registry.FailDelete(id);
 
         _time.UtcNowValue = Base.AddMinutes(12);
         Assert.True(_registry.Exists(id));
@@ -180,6 +181,73 @@ _time.UtcNowValue = Base.AddMinutes(10);
 
         _time.UtcNowValue = Base.AddMinutes(11);
         Assert.Equal(cap, registry.PopExpired().Count);
+    }
+
+    [Fact]
+    public void Touching_a_popped_session_resurrects_it_and_blocks_the_sweep_claim()
+    {
+        Assert.True(_registry.TryCreate(out string s));
+
+        _time.UtcNowValue = Base.AddMinutes(11);
+        Assert.Equal([s], _registry.PopExpired());
+
+        Assert.True(_registry.Touch(s));
+        Assert.True(_registry.Exists(s));
+        Assert.False(_registry.TryClaimExpired(s));
+    }
+
+    [Fact]
+    public void Claiming_a_popped_session_blocks_touch_and_keeps_it_gone()
+    {
+        Assert.True(_registry.TryCreate(out string id));
+
+        _time.UtcNowValue = Base.AddMinutes(11);
+        Assert.Equal([id], _registry.PopExpired());
+        Assert.True(_registry.TryClaimExpired(id));
+
+        Assert.False(_registry.Touch(id));
+        Assert.False(_registry.Exists(id));
+    }
+
+    [Fact]
+    public void TryClaimExpired_returns_false_for_an_alive_session()
+    {
+        Assert.True(_registry.TryCreate(out string id));
+
+        Assert.False(_registry.TryClaimExpired(id));
+        Assert.True(_registry.Exists(id));
+    }
+
+    [Fact]
+    public void ConfirmDelete_leaves_a_claimed_session_unreachable()
+    {
+        Assert.True(_registry.TryCreate(out string id));
+
+        _time.UtcNowValue = Base.AddMinutes(11);
+        Assert.Equal([id], _registry.PopExpired());
+        Assert.True(_registry.TryClaimExpired(id));
+
+        _registry.ConfirmDelete(id);
+
+        Assert.False(_registry.Touch(id));
+        Assert.False(_registry.Exists(id));
+    }
+
+    [Fact]
+    public void Remove_clears_a_claimed_session_from_all_states()
+    {
+        Assert.True(_registry.TryCreate(out string id));
+
+        _time.UtcNowValue = Base.AddMinutes(11);
+        Assert.Equal([id], _registry.PopExpired());
+        Assert.True(_registry.TryClaimExpired(id));
+
+        _registry.Remove(id);
+
+        Assert.False(_registry.Touch(id));
+        Assert.False(_registry.TryClaimExpired(id));
+        _time.UtcNowValue = Base.AddMinutes(22);
+        Assert.Empty(_registry.PopExpired());
     }
 
     [Fact]
