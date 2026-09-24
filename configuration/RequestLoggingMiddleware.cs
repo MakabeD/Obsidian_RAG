@@ -6,6 +6,9 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
 {
     private const string RequestIdHeader = "X-Request-Id";
 
+    private static string RedactPath(string path, string? sessionId) =>
+        sessionId is null ? path : path.Replace(sessionId, "[redacted]");
+
     public async Task InvokeAsync(HttpContext context)
     {
         string requestId = context.Request.Headers.TryGetValue(RequestIdHeader, out var incoming) && !string.IsNullOrWhiteSpace(incoming)
@@ -38,7 +41,7 @@ public class RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggi
             finally
             {
                 stopwatch.Stop();
-                recentRequests.Add(requestId, context.Request.Method, context.Request.Path.Value ?? string.Empty, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
+                recentRequests.Add(requestId, context.Request.Method, RedactPath(context.Request.Path.Value ?? string.Empty, sessionId), context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
                 int status = context.Response.StatusCode;
                 if (status >= 500)
                 {

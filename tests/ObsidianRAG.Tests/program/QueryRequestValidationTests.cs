@@ -19,7 +19,7 @@ public class QueryRequestValidationTests
             {
                 TestSupport.RemoveAll(services, typeof(IEmbedder));
                 TestSupport.RemoveAll(services, typeof(IChromaService));
-                services.AddSingleton<IEmbedder>(new StubEmbedder());
+                services.AddSingleton<IEmbedder>(new TestSupport.StubEmbedder());
                 services.AddSingleton<IChromaService>(new TestSupport.StubChroma());
             });
         });
@@ -37,12 +37,5 @@ public class QueryRequestValidationTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         string body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Prompt cannot be empty", body);
-    }
-
-    private sealed class StubEmbedder : IEmbedder
-    {
-        public float[] Embed(string text) => [1f, 0f];
-
-        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
     }
 }

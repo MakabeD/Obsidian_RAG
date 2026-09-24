@@ -1,3 +1,4 @@
+using chunker;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -18,6 +19,13 @@ internal static class TestSupport
     }
 
     internal sealed record SessionResponse(string SessionId);
+
+    internal sealed class StubEmbedder : IEmbedder
+    {
+        public float[] Embed(string text) => [1f, 0f];
+
+        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
+    }
 
     internal sealed class StubChroma : IChromaService
     {
