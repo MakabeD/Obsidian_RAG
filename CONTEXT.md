@@ -38,6 +38,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-22: 502 responses now carry a generic detail ("The upstream service could not be reached."); the raw Chroma error body and collection name stay in the exception that reaches the logs only (issue #5).
 - 2026-09-21: `/diagnostics/requests` no longer exposes live session ids — `RequestLoggingMiddleware` redacts the session GUID from recorded paths (issue #4).
 - 2026-09-21: session registry is three-state (`_lastSeen`/`_expiring`/`_deleting`): a Touch resurrects a popped session, the sweeper claims before deleting (atomic vs. touch), and `/md` re-touches before the Chroma add — closes the sweep-vs-upload race that could return 200 then delete the just-uploaded vectors (issue #6).
 - 2026-09-20: chunks embed in batches of `EmbedBatchSize` (new, default 32; measured throughput-neutral on CPU — the model is compute-bound) and uploads are rejected with 400 above `MaxChunkCount` (new, default 20 000) before any embedding runs (issue #3).

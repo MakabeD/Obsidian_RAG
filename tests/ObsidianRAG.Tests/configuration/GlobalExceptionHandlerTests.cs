@@ -3,10 +3,13 @@ using System.Net.Http.Json;
 using chunker;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using ObsidianRAG.Tests.program;
 using Xunit;
 
 namespace ObsidianRAG.Tests.configuration;
 
+[Collection(nameof(ObsidianRAG.Tests.program.WebHost))]
 public class GlobalExceptionHandlerTests
 {
     private const string InternalMarker = "SECRET_INTERNAL_STATE_ABC123";
@@ -29,10 +32,12 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task HttpRequestException_is_mapped_to_502_and_keeps_its_message()
+    public async Task HttpRequestException_returns_502_with_a_generic_detail_and_keeps_the_upstream_message_in_logs_only()
     {
-        using var factory = CreateFactory(chroma: new ThrowingChroma(
-            new HttpRequestException(InternalMarker)));
+        var logs = new CapturingLoggerProvider();
+        using var factory = CreateFactory(
+            chroma: new ThrowingChroma(new HttpRequestException(InternalMarker)),
+            logs: logs);
         HttpClient client = factory.CreateClient();
 
         string sessionId = await CreateSessionAsync(client);
@@ -41,14 +46,17 @@ public class GlobalExceptionHandlerTests
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
         string body = await response.Content.ReadAsStringAsync();
-        Assert.Contains(InternalMarker, body);
+        Assert.DoesNotContain(InternalMarker, body);
+        Assert.Contains("could not be reached", body);
+        Assert.Contains(logs.Exceptions, e => e.Error.Message.Contains(InternalMarker));
     }
 
-    private static WebApplicationFactory<Program> CreateFactory(IChromaService chroma)
+    private static WebApplicationFactory<Program> CreateFactory(IChromaService chroma, ILoggerProvider? logs = null)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
+                if (logs is not null) services.AddSingleton<ILoggerProvider>(logs);
                 RemoveAll(services, typeof(IEmbedder));
                 RemoveAll(services, typeof(IChromaService));
                 services.AddSingleton<IEmbedder>(new StubEmbedder());

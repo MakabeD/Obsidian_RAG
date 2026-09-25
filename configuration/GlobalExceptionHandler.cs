@@ -30,14 +30,18 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         }
 
         httpContext.Response.StatusCode = status;
+        string detail = status switch
+        {
+            StatusCodes.Status500InternalServerError => "An unexpected error occurred.",
+            StatusCodes.Status502BadGateway => "The upstream service could not be reached.",
+            _ => exception.Message
+        };
         await httpContext.Response.WriteAsJsonAsync(new
         {
             type = $"https://httpstatuses.io/{status}",
             title,
             status,
-            detail = status == StatusCodes.Status500InternalServerError
-                ? "An unexpected error occurred."
-                : exception.Message,
+            detail,
             traceId = httpContext.TraceIdentifier
         }, cancellationToken);
 
