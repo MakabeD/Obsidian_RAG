@@ -41,19 +41,26 @@ public class ChromaService : IChromaService
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
+        if (_collectionId != null)
+            return;
+
+        _collectionId = await ResolveCollectionIdAsync(ct);
+    }
+
+    protected virtual async Task<string?> ResolveCollectionIdAsync(CancellationToken ct)
+    {
         using HttpResponseMessage response = await _httpClient.GetAsync($"{_collectionsPath}/{_collectionName}", ct);
 
         if (response.IsSuccessStatusCode)
         {
             JsonElement collection = await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-            _collectionId = TryGetId(collection);
-            return;
+            return TryGetId(collection);
         }
 
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             await CreateCollectionAsync(ct);
-            return;
+            return _collectionId;
         }
 
         string body = await response.Content.ReadAsStringAsync(ct);
