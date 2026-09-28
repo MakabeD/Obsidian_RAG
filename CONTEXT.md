@@ -38,6 +38,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-23: mean-pooling reads the ONNX output through `ToDenseTensor().Buffer.Span` with computed strides and `TensorPrimitives`, instead of the allocating `Tensor<T>` multi-index indexer — measured 2.0x on `[1,514,768]` (indexed 9.3 ms → 4.7 ms; below the audit's 26x on this hardware), with identical output (issue #10).
 - 2026-09-23: `IEmbedder.Embed`/`EmbeddRange` and `VaultReader.reader` accept a `CancellationToken` (checked per chunk/file/zip entry), and the endpoints thread the request token through — a client disconnect now aborts upload inference instead of running the full vault to completion (issue #9).
 - 2026-09-23: prompts are capped at `MaxPromptChars` (new, default 4096): `/query` rejects longer prompts with 400 before any embedding, and `Embed` defensively truncates before tokenizing — the query path no longer tokenizes up to 25 MB then discards it (issue #8).
 - 2026-09-23: `ChromaService.InitializeAsync` now short-circuits once the collection id is cached (resolution extracted into `ResolveCollectionIdAsync`), dropping one HTTP GET + JSON parse from every Chroma-touching request and sweep cycle (issue #7).

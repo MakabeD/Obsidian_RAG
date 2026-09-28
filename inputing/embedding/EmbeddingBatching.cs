@@ -62,25 +62,25 @@ public static class EmbeddingBatching
     public static float[][] MeanPool(Tensor<float> output, int[] lengths)
     {
         int batchSize = output.Dimensions[0];
+        int sequenceLength = output.Dimensions[1];
         int hiddenSize = output.Dimensions[2];
+
+        ReadOnlySpan<float> buffer = output.ToDenseTensor().Buffer.Span;
 
         float[][] pooled = new float[batchSize][];
         for (int b = 0; b < batchSize; b++)
         {
             float[] embedding = new float[hiddenSize];
+            int rowStart = b * sequenceLength * hiddenSize;
             for (int i = 0; i < lengths[b]; i++)
             {
-                for (int j = 0; j < hiddenSize; j++)
-                {
-                    embedding[j] += output[b, i, j];
-                }
+                System.Numerics.Tensors.TensorPrimitives.Add(
+                    embedding,
+                    buffer.Slice(rowStart + i * hiddenSize, hiddenSize),
+                    embedding);
             }
 
-            for (int j = 0; j < hiddenSize; j++)
-            {
-                embedding[j] /= lengths[b];
-            }
-
+            System.Numerics.Tensors.TensorPrimitives.Divide(embedding, lengths[b], embedding);
             pooled[b] = embedding;
         }
 
