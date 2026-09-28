@@ -27,6 +27,19 @@ public class VaultReaderTests
     }
 
     [Fact]
+    public async Task A_cancelled_token_stops_reading_before_any_work()
+    {
+        using CancellationTokenSource cts = new();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => VaultReader.reader(
+                Files(("a.zip", MakeZip(("a.md", new string('a', 10))))),
+                OptionsWithCap(100),
+                cts.Token));
+    }
+
+    [Fact]
     public async Task A_zip_summing_exactly_to_the_cap_is_accepted()
     {
         List<DocumentData> documents = await VaultReader.reader(

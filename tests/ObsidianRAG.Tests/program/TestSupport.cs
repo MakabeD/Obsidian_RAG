@@ -22,9 +22,9 @@ internal static class TestSupport
 
     internal sealed class StubEmbedder : IEmbedder
     {
-        public float[] Embed(string text) => [1f, 0f];
+        public float[] Embed(string text, CancellationToken ct = default) => [1f, 0f];
 
-        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
+        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents, CancellationToken ct = default) => documents;
     }
 
     internal sealed class CountingEmbedder : IEmbedder
@@ -32,13 +32,13 @@ internal static class TestSupport
         public int EmbedCalls;
         public int RangeCalls;
 
-        public float[] Embed(string text)
+        public float[] Embed(string text, CancellationToken ct = default)
         {
             EmbedCalls++;
             return [1f, 0f];
         }
 
-        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
+        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents, CancellationToken ct = default)
         {
             RangeCalls++;
             return documents;

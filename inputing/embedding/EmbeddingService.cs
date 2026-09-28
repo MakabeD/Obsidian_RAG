@@ -32,8 +32,10 @@ public class EmbeddingService : IEmbedder, IDisposable
         && File.Exists(_opts.ModelPath)
         && File.Exists(_opts.VocabPath);
 
-    public float[] Embed(string text)
+    public float[] Embed(string text, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (text.Length > _opts.MaxPromptChars)
         {
             _logger.LogWarning(
@@ -52,11 +54,13 @@ public class EmbeddingService : IEmbedder, IDisposable
         return EmbeddingBatching.MeanPool(outputTensor, [ids.Length]).Single();
     }
 
-    public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
+    public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents, CancellationToken ct = default)
     {
         List<(DocumentChunk Chunk, long[] Ids)> buffer = new(_batchSize);
         foreach (DocumentChunk doc in documents)
         {
+            ct.ThrowIfCancellationRequested();
+
             buffer.Add((doc, TokenizeToWrappedIds(doc.Content)));
             if (buffer.Count == _batchSize)
             {
@@ -71,6 +75,8 @@ public class EmbeddingService : IEmbedder, IDisposable
 
         if (buffer.Count > 0)
         {
+            ct.ThrowIfCancellationRequested();
+
             foreach (DocumentChunk chunk in EmbedBatch(buffer))
             {
                 yield return chunk;

@@ -17,7 +17,8 @@ namespace vaultReader
 
         public static async Task<List<DocumentData>> reader(
             IFormFileCollection files,
-            IOptions<RagOptions> options)
+            IOptions<RagOptions> options,
+            CancellationToken ct = default)
         {
             RagOptions opts = options.Value;
             List<DocumentData> processedFiles = new();
@@ -25,6 +26,8 @@ namespace vaultReader
 
             foreach (IFormFile file in files)
             {
+                ct.ThrowIfCancellationRequested();
+
                 string ext = Path.GetExtension(file.FileName);
                 if (!AllowedExtensions.Contains(ext))
                 {
@@ -40,11 +43,11 @@ namespace vaultReader
 
                 if (ext.Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    processedFiles.AddRange(await GetMdFromZipAsync(file, opts, accumulator));
+                    processedFiles.AddRange(await GetMdFromZipAsync(file, opts, accumulator, ct));
                 }
                 else
                 {
-                    processedFiles.Add(FileToString(file));
+                    processedFiles.Add(await FileToStringAsync(file, ct));
                     accumulator.Add(file.Length);
                 }
             }
@@ -52,7 +55,7 @@ namespace vaultReader
             return processedFiles;
         }
 
-        private static DocumentData FileToString(IFormFile file)
+        private static async Task<DocumentData> FileToStringAsync(IFormFile file, CancellationToken ct)
         {
             using var stream = file.OpenReadStream();
             using var reader = new StreamReader(stream);
@@ -61,14 +64,15 @@ namespace vaultReader
             {
                 Source = file.FileName,
                 FileName = file.FileName,
-                Content = reader.ReadToEnd()
+                Content = await reader.ReadToEndAsync(ct)
             };
         }
 
         private static async Task<List<DocumentData>> GetMdFromZipAsync(
             IFormFile file,
             RagOptions opts,
-            UncompressedAccumulator accumulator)
+            UncompressedAccumulator accumulator,
+            CancellationToken ct)
         {
             List<DocumentData> processedZip = new();
 
@@ -83,6 +87,8 @@ namespace vaultReader
 
             foreach (ZipArchiveEntry entry in zip.Entries)
             {
+                ct.ThrowIfCancellationRequested();
+
                 if (string.IsNullOrEmpty(entry.Name))
                 {
                     continue;
@@ -113,14 +119,14 @@ namespace vaultReader
 
                 using Stream fileflow = entry.Open();
                 using var ms = new MemoryStream();
-                await fileflow.CopyToAsync(ms);
+                await fileflow.CopyToAsync(ms, ct);
                 long entrySize = ms.Length;
                 ms.Position = 0;
 
                 accumulator.Add(entrySize);
 
                 using StreamReader reader = new(ms, leaveOpen: true);
-                string content = await reader.ReadToEndAsync();
+                string content = await reader.ReadToEndAsync(ct);
 
                 processedZip.Add(new DocumentData
                 {

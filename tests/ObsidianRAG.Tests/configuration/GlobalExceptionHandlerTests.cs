@@ -86,9 +86,9 @@ public class GlobalExceptionHandlerTests
 
     private sealed class StubEmbedder : IEmbedder
     {
-        public float[] Embed(string text) => [1f, 0f];
+        public float[] Embed(string text, CancellationToken ct = default) => [1f, 0f];
 
-        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
+        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents, CancellationToken ct = default) => documents;
     }
 
     private sealed class ThrowingChroma(Exception exception) : IChromaService

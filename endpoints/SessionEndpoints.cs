@@ -42,7 +42,7 @@ public static class SessionEndpoints
 
             RagOptions opts = options.Value;
             IFormCollection form = await request.ReadFormAsync(ct);
-            List<DocumentData> documents = await VaultReader.reader(form.Files, options);
+            List<DocumentData> documents = await VaultReader.reader(form.Files, options, ct);
 
             if (documents.Count == 0)
                 return Results.BadRequest(new { error = "No actionable documents were found." });
@@ -57,7 +57,7 @@ public static class SessionEndpoints
             }
 
             chunks = embed
-                .EmbeddRange(chunks)
+                .EmbeddRange(chunks, ct)
                 .ToList();
 
             chunks = ChunkIdRewriter.RewriteChunkIds(chunks, id);
@@ -115,7 +115,7 @@ public static class SessionEndpoints
             }
 
             await chroma.InitializeAsync(ct);
-            float[] queryEmbedding = embed.Embed(body.Prompt);
+            float[] queryEmbedding = embed.Embed(body.Prompt, ct);
             List<SearchResult> results = await chroma.QuerySessionAsync(id, queryEmbedding, topK, ct);
             logger.LogInformation("Session {SessionId} query returned {Count} results", id, results.Count);
             return Results.Ok(results);
