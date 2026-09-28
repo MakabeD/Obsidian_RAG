@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 public class SessionRegistry
 {
     private readonly ConcurrentDictionary<string, DateTime> _lastSeen = new();
+    private readonly Dictionary<string, DateTime> _scheduledExpiry = new();
     private readonly HashSet<string> _expiring = new();
     private readonly HashSet<string> _deleting = new();
     private readonly PriorityQueue<string, DateTime> _expiry = new();
@@ -18,6 +19,17 @@ public class SessionRegistry
         _ttl = TimeSpan.FromMinutes(Math.Max(1, options.Value.SessionTtlMinutes));
         _maxSessions = Math.Max(1, options.Value.MaxConcurrentSessions);
         _time = timeProvider ?? TimeProvider.System;
+    }
+
+    public int ScheduledEntryCount
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _expiry.Count;
+            }
+        }
     }
 
     public bool TryCreate(out string sessionId)
@@ -70,6 +82,7 @@ public class SessionRegistry
         lock (_lock)
         {
             bool removed = _lastSeen.TryRemove(sessionId, out _);
+            _scheduledExpiry.Remove(sessionId);
             _expiring.Remove(sessionId);
             _deleting.Remove(sessionId);
             return removed;
@@ -85,11 +98,26 @@ public class SessionRegistry
             while (_expiry.TryPeek(out _, out DateTime expiryAt) && expiryAt <= now)
             {
                 string id = _expiry.Dequeue();
-                if (_lastSeen.TryGetValue(id, out DateTime lastSeen) && now - lastSeen >= _ttl)
+                _scheduledExpiry.Remove(id);
+
+                if (!_lastSeen.TryGetValue(id, out DateTime lastSeen))
                 {
-                    _lastSeen.TryRemove(id, out _);
-                    _expiring.Add(id);
-                    expired.Add(id);
+                    continue;
+                }
+
+                if (now - lastSeen >= _ttl)
+                {
+                    if (_lastSeen.TryRemove(id, out _))
+                    {
+                        _expiring.Add(id);
+                        expired.Add(id);
+                    }
+                }
+                else
+                {
+                    DateTime nextExpiry = lastSeen + _ttl;
+                    _expiry.Enqueue(id, nextExpiry);
+                    _scheduledExpiry[id] = nextExpiry;
                 }
             }
         }
@@ -135,7 +163,12 @@ public class SessionRegistry
     {
         lock (_lock)
         {
-            _expiry.Enqueue(sessionId, now + _ttl);
+            if (_scheduledExpiry.ContainsKey(sessionId))
+                return;
+
+            DateTime expiryAt = now + _ttl;
+            _expiry.Enqueue(sessionId, expiryAt);
+            _scheduledExpiry[sessionId] = expiryAt;
         }
     }
 

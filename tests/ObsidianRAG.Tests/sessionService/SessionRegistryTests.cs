@@ -251,6 +251,34 @@ _time.UtcNowValue = Base.AddMinutes(10);
     }
 
     [Fact]
+    public void Repeated_touches_do_not_grow_the_scheduled_queue()
+    {
+        Assert.True(_registry.TryCreate(out string id));
+
+        for (int i = 0; i < 100; i++)
+        {
+            _time.UtcNowValue = Base.AddSeconds(i);
+            Assert.True(_registry.Touch(id));
+        }
+
+        Assert.Equal(1, _registry.ScheduledEntryCount);
+    }
+
+    [Fact]
+    public void A_re_scheduled_session_still_holds_a_single_entry()
+    {
+        Assert.True(_registry.TryCreate(out string id));
+
+        _time.UtcNowValue = Base.AddMinutes(9);
+        _registry.Touch(id);
+        _time.UtcNowValue = Base.AddMinutes(11);
+
+        Assert.Empty(_registry.PopExpired());
+        Assert.True(_registry.Exists(id));
+        Assert.Equal(1, _registry.ScheduledEntryCount);
+    }
+
+    [Fact]
     public void Concurrent_create_touch_and_pop_keep_the_registry_consistent()
     {
         const int sessions = 200;
