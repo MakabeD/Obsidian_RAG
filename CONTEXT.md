@@ -38,6 +38,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-23: upload chunking runs in a helper that returns only the document count plus the chunks, so the `List<DocumentData>` (the 400-800 MB of doc strings) is unreferenced before embedding instead of living until the handler returns; the full streaming pipeline (peak ≈ largest document) remains future work (issue #13).
 - 2026-09-23: `SessionRegistry` keeps at most one scheduled expiry entry per session — `Touch` no longer enqueues on every call, and `PopExpired` re-arms an entry when a popped session is still active — so the expiry queue is O(live sessions) instead of O(request-rate × TTL) (issue #12).
 - 2026-09-23: Chroma adds are batched in `ChromaAddBatchSize` (new, default 500) slices instead of one POST per upload, removing the four all-chunks parallel lists and the single giant request; the remaining document/chunk memory peak is tracked by #13 (issue #11).
 - 2026-09-23: mean-pooling reads the ONNX output through `ToDenseTensor().Buffer.Span` with computed strides and `TensorPrimitives`, instead of the allocating `Tensor<T>` multi-index indexer — measured 2.0x on `[1,514,768]` (indexed 9.3 ms → 4.7 ms; below the audit's 26x on this hardware), with identical output (issue #10).

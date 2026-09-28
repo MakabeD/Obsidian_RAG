@@ -42,12 +42,13 @@ public static class SessionEndpoints
 
             RagOptions opts = options.Value;
             IFormCollection form = await request.ReadFormAsync(ct);
-            List<DocumentData> documents = await VaultReader.reader(form.Files, options, ct);
 
-            if (documents.Count == 0)
+            (int documentCount, List<DocumentChunk> chunks) =
+                ChunkUpload(await VaultReader.reader(form.Files, options, ct), opts.ChunkThreshold);
+
+            if (documentCount == 0)
                 return Results.BadRequest(new { error = "No actionable documents were found." });
 
-            List<DocumentChunk> chunks = [.. Chunker.Chunking(documents, opts.ChunkThreshold)];
             if (chunks.Count > opts.MaxChunkCount)
             {
                 return Results.BadRequest(new
@@ -121,6 +122,11 @@ public static class SessionEndpoints
             return Results.Ok(results);
         });
     }
+
+    private static (int DocumentCount, List<DocumentChunk> Chunks) ChunkUpload(
+        List<DocumentData> documents,
+        int chunkThreshold) =>
+        (documents.Count, [.. Chunker.Chunking(documents, chunkThreshold)]);
 }
 
 public record QueryRequest(string Prompt, int? TopK);
