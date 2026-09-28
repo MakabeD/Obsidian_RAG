@@ -15,6 +15,9 @@ public class RagOptions
     [Range(1, 100_000)]
     public int MaxTokenLength { get; set; } = 512;
 
+    [Range(1, 100_000)]
+    public int MaxPromptChars { get; set; } = 4096;
+
     [Range(1, 256)]
     public int EmbedBatchSize { get; set; } = 32;
 

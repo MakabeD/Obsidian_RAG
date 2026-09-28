@@ -27,6 +27,24 @@ internal static class TestSupport
         public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents) => documents;
     }
 
+    internal sealed class CountingEmbedder : IEmbedder
+    {
+        public int EmbedCalls;
+        public int RangeCalls;
+
+        public float[] Embed(string text)
+        {
+            EmbedCalls++;
+            return [1f, 0f];
+        }
+
+        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
+        {
+            RangeCalls++;
+            return documents;
+        }
+    }
+
     internal sealed class StubChroma : IChromaService
     {
         public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;

@@ -34,6 +34,14 @@ public class EmbeddingService : IEmbedder, IDisposable
 
     public float[] Embed(string text)
     {
+        if (text.Length > _opts.MaxPromptChars)
+        {
+            _logger.LogWarning(
+                "Truncating prompt from {Original} to {Max} characters before tokenizing",
+                text.Length, _opts.MaxPromptChars);
+            text = EmbeddingBatching.TruncateToMaxChars(text, _opts.MaxPromptChars);
+        }
+
         long[] ids = TokenizeToWrappedIds(text);
 
         var inputs = BuildSessionInputs([ids]);

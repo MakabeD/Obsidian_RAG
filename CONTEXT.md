@@ -38,6 +38,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-09-23: prompts are capped at `MaxPromptChars` (new, default 4096): `/query` rejects longer prompts with 400 before any embedding, and `Embed` defensively truncates before tokenizing — the query path no longer tokenizes up to 25 MB then discards it (issue #8).
 - 2026-09-23: `ChromaService.InitializeAsync` now short-circuits once the collection id is cached (resolution extracted into `ResolveCollectionIdAsync`), dropping one HTTP GET + JSON parse from every Chroma-touching request and sweep cycle (issue #7).
 - 2026-09-22: 502 responses now carry a generic detail ("The upstream service could not be reached."); the raw Chroma error body and collection name stay in the exception that reaches the logs only (issue #5).
 - 2026-09-21: `/diagnostics/requests` no longer exposes live session ids — `RequestLoggingMiddleware` redacts the session GUID from recorded paths (issue #4).

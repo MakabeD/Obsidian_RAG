@@ -2,6 +2,9 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 
 public static class EmbeddingBatching
 {
+    public static string TruncateToMaxChars(string text, int maxChars) =>
+        text.Length <= maxChars ? text : text[..maxChars];
+
     public static long[] WrapAndTruncate(IReadOnlyList<int> rawIds, int maxTokenLength)
     {
         int maxContent = Math.Max(1, maxTokenLength - 2);

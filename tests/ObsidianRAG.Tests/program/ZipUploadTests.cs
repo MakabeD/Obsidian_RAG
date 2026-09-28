@@ -15,7 +15,7 @@ public class ZipUploadTests
     [Fact]
     public async Task Upload_with_two_cap_passing_zips_is_rejected_before_any_embedding()
     {
-        CountingEmbedder embedder = new();
+        TestSupport.CountingEmbedder embedder = new();
         CountingChroma chroma = new();
 
         using WebApplicationFactory<Program> factory = new WebApplicationFactory<Program>()
@@ -72,24 +72,6 @@ public class ZipUploadTests
         }
 
         return stream.ToArray();
-    }
-
-    private sealed class CountingEmbedder : IEmbedder
-    {
-        public int EmbedCalls;
-        public int RangeCalls;
-
-        public float[] Embed(string text)
-        {
-            EmbedCalls++;
-            return [1f, 0f];
-        }
-
-        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
-        {
-            RangeCalls++;
-            return documents;
-        }
     }
 
     private sealed class CountingChroma : IChromaService

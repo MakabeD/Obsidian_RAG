@@ -14,7 +14,7 @@ public class ChunkCountCapTests
     [Fact]
     public async Task Upload_producing_more_chunks_than_the_cap_is_rejected_before_any_embedding()
     {
-        CountingEmbedder embedder = new();
+        TestSupport.CountingEmbedder embedder = new();
         using WebApplicationFactory<Program> factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
@@ -62,7 +62,7 @@ public class ChunkCountCapTests
                 {
                     TestSupport.RemoveAll(services, typeof(IEmbedder));
                     TestSupport.RemoveAll(services, typeof(IChromaService));
-                    services.AddSingleton<IEmbedder>(new CountingEmbedder());
+                    services.AddSingleton<IEmbedder>(new TestSupport.CountingEmbedder());
                     services.AddSingleton<IChromaService>(new TestSupport.StubChroma());
                 });
             });
@@ -88,21 +88,21 @@ public class ChunkCountCapTests
         Assert.Contains("\"stored\":2", body);
     }
 
-    private sealed class CountingEmbedder : IEmbedder
+    private sealed class CountingChroma : IChromaService
     {
-        public int EmbedCalls;
-        public int RangeCalls;
+        public int AddCalls;
 
-        public float[] Embed(string text)
+        public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task AddSessionRecordsAsync(string sessionId, List<ChromaDocument> documents, CancellationToken ct = default)
         {
-            EmbedCalls++;
-            return [1f, 0f];
+            AddCalls++;
+            return Task.CompletedTask;
         }
 
-        public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents)
-        {
-            RangeCalls++;
-            return documents;
-        }
+        public Task<List<SearchResult>> QuerySessionAsync(string sessionId, float[] queryEmbedding, int topK, CancellationToken ct = default)
+            => Task.FromResult(new List<SearchResult>());
+
+        public Task TerminateSessionAsync(string sessionId, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

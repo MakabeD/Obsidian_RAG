@@ -106,6 +106,14 @@ public static class SessionEndpoints
             if (string.IsNullOrWhiteSpace(body.Prompt))
                 return Results.BadRequest(new { error = "Prompt cannot be empty" });
 
+            if (body.Prompt.Length > opts.MaxPromptChars)
+            {
+                return Results.BadRequest(new
+                {
+                    error = $"Prompt is too long: {body.Prompt.Length} characters, the limit is {opts.MaxPromptChars}."
+                });
+            }
+
             await chroma.InitializeAsync(ct);
             float[] queryEmbedding = embed.Embed(body.Prompt);
             List<SearchResult> results = await chroma.QuerySessionAsync(id, queryEmbedding, topK, ct);

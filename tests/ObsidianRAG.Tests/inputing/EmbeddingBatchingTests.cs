@@ -148,6 +148,15 @@ public class EmbeddingBatchingTests
             .Select(i => tensor[row, i])
             .ToArray();
 
+    [Fact]
+    public void TruncateToMaxChars_cuts_only_strings_over_the_limit()
+    {
+        Assert.Equal("abc", EmbeddingBatching.TruncateToMaxChars("abc", maxChars: 5));
+        Assert.Equal("abcde", EmbeddingBatching.TruncateToMaxChars("abcde", maxChars: 5));
+        Assert.Equal("abcde", EmbeddingBatching.TruncateToMaxChars("abcdefgh", maxChars: 5));
+        Assert.Equal("", EmbeddingBatching.TruncateToMaxChars("abc", maxChars: 0));
+    }
+
     private static DenseTensor<float> Output(int batches, int length, int hidden, Func<int, int, int, float> value)
     {
         DenseTensor<float> tensor = new(new[] { batches, length, hidden });
