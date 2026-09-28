@@ -28,6 +28,7 @@ public class ChromaService : IChromaService
     private readonly string _collectionName;
     private readonly string _collectionsPath;
     private readonly ILogger<ChromaService> _logger;
+    private readonly int _addBatchSize;
     private string? _collectionId;
 
     public ChromaService(HttpClient httpClient, IOptions<RagOptions> options, ILogger<ChromaService> logger)
@@ -36,6 +37,7 @@ public class ChromaService : IChromaService
         _httpClient = httpClient;
         _collectionName = opts.CollectionName;
         _logger = logger;
+        _addBatchSize = Math.Max(1, opts.ChromaAddBatchSize);
         _collectionsPath = $"/api/v2/tenants/{opts.ChromaTenant}/databases/{opts.ChromaDatabase}/collections";
     }
 
@@ -103,6 +105,14 @@ public class ChromaService : IChromaService
     {
         EnsureInitialized();
 
+        foreach (ChromaDocument[] batch in documents.Chunk(_addBatchSize))
+        {
+            await AddBatchAsync(sessionId, batch, ct);
+        }
+    }
+
+    private async Task AddBatchAsync(string sessionId, IReadOnlyList<ChromaDocument> documents, CancellationToken ct)
+    {
         var ids = new List<string>(documents.Count);
         var embeddings = new List<float[]>(documents.Count);
         var metadatas = new List<Dictionary<string, object>>(documents.Count);
