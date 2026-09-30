@@ -78,5 +78,6 @@ public class RagOptions
     [Range(1, int.MaxValue)]
     public int HealthCheckTimeoutMs { get; set; } = 2000;
 
+    [Range(1, 10_000)]
     public int RecentRequestCapacity { get; set; } = 100;
 }
