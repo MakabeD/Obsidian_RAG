@@ -51,6 +51,23 @@ public class GlobalExceptionHandlerTests
         Assert.Contains(logs.Exceptions, e => e.Error.Message.Contains(InternalMarker));
     }
 
+    [Fact]
+    public async Task ArgumentException_from_internal_code_is_classified_as_500_and_not_echoed()
+    {
+        using var factory = CreateFactory(chroma: new ThrowingChroma(
+            new ArgumentException(InternalMarker)));
+        HttpClient client = factory.CreateClient();
+
+        string sessionId = await CreateSessionAsync(client);
+        HttpResponseMessage response = await client.PostAsJsonAsync(
+            $"/session/{sessionId}/query", new { prompt = "hello", topK = (int?)null });
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        string body = await response.Content.ReadAsStringAsync();
+        Assert.DoesNotContain(InternalMarker, body);
+        Assert.Contains("An unexpected error occurred.", body);
+    }
+
     private static WebApplicationFactory<Program> CreateFactory(IChromaService chroma, ILoggerProvider? logs = null)
         => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {

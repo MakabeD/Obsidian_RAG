@@ -14,7 +14,6 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         {
             NotSupportedException => (StatusCodes.Status400BadRequest, "Unsupported file type"),
             UnsafeZipException    => (StatusCodes.Status400BadRequest, "Unsafe or oversized zip archive"),
-            ArgumentException       => (StatusCodes.Status400BadRequest, "Invalid argument"),
             BadHttpRequestException => (StatusCodes.Status400BadRequest, "Invalid request"),
             HttpRequestException    => (StatusCodes.Status502BadGateway, "Error communicating with an external service"),
             _                       => (StatusCodes.Status500InternalServerError, "Internal server error")
