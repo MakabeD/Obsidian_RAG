@@ -29,5 +29,8 @@ x86/
 model/model.onnx
 model/RAG.zip
 
+# Chroma runtime data (bind mount from docker-compose; contains indexed notes)
+chromadb/data/
+
 /.opencode
 AGENTS.md
