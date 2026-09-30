@@ -21,8 +21,13 @@ A local Retrieval-Augmented Generation (RAG) service for Obsidian vaults. It ing
    ```bash
    mkdir -p model
    curl -L -o model/model.onnx \
-     https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx
+     https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/onnx/model.onnx
+   sha256sum -c - <<'EOF'
+   6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452  model/model.onnx
+   EOF
    ```
+
+   The URL is pinned to a specific Hugging Face commit and the checksum verifies the downloaded bytes — `sha256sum -c` must report `OK` before running the API.
 
    `model/vocab.txt` ships with the repo. `model.onnx` is not tracked by Git — this one-time download is all you need.
 
