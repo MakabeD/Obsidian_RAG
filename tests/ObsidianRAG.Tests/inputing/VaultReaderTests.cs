@@ -108,6 +108,51 @@ public class VaultReaderTests
         Assert.Contains("100", exception.Message);
     }
 
+    [Fact]
+    public async Task A_zip_entry_with_an_oversized_name_is_truncated_to_MaxFileNameLength()
+    {
+        string longName = new string('n', 300) + ".md";
+
+        List<DocumentData> documents = await VaultReader.reader(
+            Files(("a.zip", MakeZip((longName, new string('a', 60))))),
+            OptionsWithCap(60));
+
+        DocumentData document = Assert.Single(documents);
+        Assert.Equal(new string('n', 260), document.FileName);
+        Assert.Equal(new string('n', 260), document.Source);
+        Assert.Equal(new string('a', 60), document.Content);
+    }
+
+    [Fact]
+    public async Task A_bar_md_upload_with_an_oversized_name_is_truncated_to_MaxFileNameLength()
+    {
+        string longName = new string('m', 280) + ".md";
+
+        List<DocumentData> documents = await VaultReader.reader(
+            Files((longName, "hello"u8.ToArray())),
+            OptionsWithCap(100));
+
+        DocumentData document = Assert.Single(documents);
+        Assert.Equal(new string('m', 260), document.FileName);
+        Assert.Equal(new string('m', 260), document.Source);
+        Assert.Equal("hello", document.Content);
+    }
+
+    [Fact]
+    public async Task A_name_of_exactly_MaxFileNameLength_is_kept_whole_and_one_char_more_is_truncated()
+    {
+        string atCap = new string('x', 257) + ".md";
+        string overCap = new string('x', 258) + ".md";
+
+        IFormFileCollection files = Files((atCap, "ok"u8.ToArray()), (overCap, "ok"u8.ToArray()));
+
+        List<DocumentData> documents = await VaultReader.reader(files, OptionsWithCap(100));
+
+        Assert.Equal(2, documents.Count);
+        Assert.Equal(atCap, documents[0].FileName);
+        Assert.Equal(overCap[..260], documents[1].FileName);
+    }
+
     private static IOptions<RagOptions> OptionsWithCap(long cap) =>
         Options.Create(new RagOptions { MaxZipTotalUncompressedBytes = cap });
 

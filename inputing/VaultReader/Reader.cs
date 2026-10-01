@@ -47,7 +47,7 @@ namespace vaultReader
                 }
                 else
                 {
-                    processedFiles.Add(await FileToStringAsync(file, ct));
+                    processedFiles.Add(await FileToStringAsync(file, opts, ct));
                     accumulator.Add(file.Length);
                 }
             }
@@ -55,15 +55,16 @@ namespace vaultReader
             return processedFiles;
         }
 
-        private static async Task<DocumentData> FileToStringAsync(IFormFile file, CancellationToken ct)
+        private static async Task<DocumentData> FileToStringAsync(IFormFile file, RagOptions opts, CancellationToken ct)
         {
             using var stream = file.OpenReadStream();
             using var reader = new StreamReader(stream);
+            int max = opts.MaxFileNameLength;
 
             return new DocumentData
             {
-                Source = file.FileName,
-                FileName = file.FileName,
+                Source = CapName(file.FileName, max),
+                FileName = CapName(file.FileName, max),
                 Content = await reader.ReadToEndAsync(ct)
             };
         }
@@ -130,14 +131,17 @@ namespace vaultReader
 
                 processedZip.Add(new DocumentData
                 {
-                    Source = safeSource,
-                    FileName = entry.Name,
+                    Source = CapName(safeSource, opts.MaxFileNameLength),
+                    FileName = CapName(entry.Name, opts.MaxFileNameLength),
                     Content = content
                 });
             }
 
             return processedZip;
         }
+
+        private static string CapName(string name, int max) =>
+            name.Length <= max ? name : name[..max];
 
         private static string SanitizeEntryPath(string fullName)
         {
