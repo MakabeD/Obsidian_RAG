@@ -38,6 +38,7 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-10-01: `/md` uploads pass an endpoint filter backed by `UploadConcurrencyLimiter` (new `Mutex`-style gate over `RagOptions.MaxConcurrentUploads`, new option, default 4, `[Range(1, 1000)]`) — try-acquire happens before the form is read, overflow returns 503 immediately (no queue, bounded aggregate in-flight memory), and the slot is released in a `finally` after every outcome (issue #14).
 - 2026-10-01: `DocumentData.Source`/`FileName` are capped at `MaxFileNameLength` (new option, default 260, `[Range(1, 65535)]`) in `VaultReader` — both the multipart path and zip entries truncate deterministically, bounding chunk IDs and Chroma `file_name`/`source` metadata (previously entry names up to 65,535 bytes flowed into IDs, ~2.5 GiB of ID strings per maxed request) (issue #15).
 - 2026-09-23: upload chunking runs in a helper that returns only the document count plus the chunks, so the `List<DocumentData>` (the 400-800 MB of doc strings) is unreferenced before embedding instead of living until the handler returns; the full streaming pipeline (peak ≈ largest document) remains future work (issue #13).
 - 2026-09-23: `SessionRegistry` keeps at most one scheduled expiry entry per session — `Touch` no longer enqueues on every call, and `PopExpired` re-arms an entry when a popped session is still active — so the expiry queue is O(live sessions) instead of O(request-rate × TTL) (issue #12).

@@ -23,6 +23,19 @@ public class RagOptionsValidationTests
     }
 
     [Fact]
+    public void Out_of_range_MaxConcurrentUploads_value_fails_host_startup()
+    {
+        Assert.ThrowsAny<OptionsValidationException>(() =>
+        {
+            using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+            {
+                builder.UseSetting("Rag:MaxConcurrentUploads", "0");
+            });
+            _ = factory.Services;
+        });
+    }
+
+    [Fact]
     public void Empty_required_option_value_fails_host_startup()
     {
         Assert.ThrowsAny<OptionsValidationException>(() =>

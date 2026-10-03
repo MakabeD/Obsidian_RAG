@@ -55,6 +55,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddSingleton<RecentRequestLog>();
+builder.Services.AddSingleton<UploadConcurrencyLimiter>();
 
 builder.Services.Configure<FormOptions>(o =>
 {

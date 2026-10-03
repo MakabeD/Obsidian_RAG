@@ -63,6 +63,9 @@ public class RagOptions
     [Range(1, 1_000_000)]
     public int MaxChunkCount { get; set; } = 20_000;
 
+    [Range(1, 1_000)]
+    public int MaxConcurrentUploads { get; set; } = 4;
+
     [Range(1, 65_535)]
     public int MaxFileNameLength { get; set; } = 260;
 

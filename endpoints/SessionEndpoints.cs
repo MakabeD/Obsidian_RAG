@@ -1,5 +1,6 @@
 using chunker;
 using configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using vaultReader;
@@ -26,6 +27,8 @@ public static class SessionEndpoints
             logger.LogInformation("Session {SessionId} terminated", id);
             return Results.Ok(new { deleted = id });
         });
+
+        UploadConcurrencyLimiter uploads = app.Services.GetRequiredService<UploadConcurrencyLimiter>();
 
         app.MapPost("/session/{id}/md", async (
             string id,
@@ -83,6 +86,24 @@ public static class SessionEndpoints
             await chroma.AddSessionRecordsAsync(id, docs, ct);
             logger.LogInformation("Session {SessionId} stored {Count} chunks", id, docs.Count);
             return Results.Ok(new { stored = docs.Count });
+        })
+        .AddEndpointFilter(async (ctx, next) =>
+        {
+            if (!uploads.TryEnter())
+            {
+                return Results.Json(
+                    new { error = "Concurrent upload limit reached; try again shortly." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+
+            try
+            {
+                return await next(ctx);
+            }
+            finally
+            {
+                uploads.Exit();
+            }
         })
         .DisableAntiforgery();
 
