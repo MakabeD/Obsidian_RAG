@@ -14,6 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Cache the embedding model
+        id: model
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: model/model.onnx
+          key: model-onnx-6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452
+      - name: Download the model (pinned HF commit, see README)
+        if: steps.model.outputs.cache-hit != 'true'
+        run: >-
+          curl -fL -o model/model.onnx
+          https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/onnx/model.onnx
+      - name: Verify model checksum
+        run: echo "6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452  model/model.onnx" | sha256sum -c -
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: '10.0.x'
