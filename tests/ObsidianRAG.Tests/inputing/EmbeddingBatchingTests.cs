@@ -143,6 +143,48 @@ public class EmbeddingBatchingTests
         Assert.Equal(new[] { 21f, 22f }, pooled);
     }
 
+    [Fact]
+    public void BucketByLength_groups_similar_lengths_together_in_ascending_order()
+    {
+        // Unordered input: long, short, short, long rows.
+        long[] tokens510 = Enumerable.Range(1, 508).Select(i => (long)i).Prepend(101L).Append(102L).ToArray();
+        long[][] rows =
+        [
+            tokens510,     // 510 tokens
+            [101, 5, 102], // 3 tokens
+            [101, 6, 102], // 3 tokens
+            [101, 7, 102], // 3 tokens  (kept near-zero spread so batches pair short with short)
+        ];
+
+        List<long[][]> batches = EmbeddingBatching.BucketByLength(rows, batchSize: 2);
+
+        // Length-sorted grouping: the two 3-token rows share a batch and the padded
+        // shapes stay small; the 510-token rows only pay padding for themselves.
+        Assert.Equal([2, 2], batches.Select(b => b.Length).ToArray());
+        Assert.Equal([3, 3], batches[0].Select(r => r.Length).ToArray());
+        Assert.Equal([3, 510], batches[1].Select(r => r.Length).ToArray());
+    }
+
+    [Fact]
+    public void BucketByLength_over_edge_inputs_behaves_like_a_windowed_partition()
+    {
+        Assert.Empty(EmbeddingBatching.BucketByLength([], batchSize: 4));
+
+        long[] a = [101, 5, 102];
+        long[] b = [101, 6, 102];
+        long[] c = [101, 7, 102];
+        long[] d = [101, 8, 102];
+        List<long[][]> exact = EmbeddingBatching.BucketByLength([d, d, d, d], batchSize: 2);
+        Assert.Equal(2, exact.Count);
+        Assert.All(exact, batch => Assert.Equal(2, batch.Length));
+
+        List<long[][]> partial = EmbeddingBatching.BucketByLength([a, b, c], batchSize: 2);
+        Assert.Equal(2, partial.Count);
+        Assert.Equal(2, partial[0].Length);
+        Assert.Equal(1, partial[1].Length);
+        Assert.Equal([3, 3], partial[0].Select(r => r.Length).ToArray());
+    }
+
     private static long[] Row(DenseTensor<long> tensor, int row) =>
         Enumerable.Range(0, tensor.Dimensions[1])
             .Select(i => tensor[row, i])

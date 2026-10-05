@@ -56,28 +56,34 @@ public class EmbeddingService : IEmbedder, IDisposable
 
     public IEnumerable<DocumentChunk> EmbeddRange(IEnumerable<DocumentChunk> documents, CancellationToken ct = default)
     {
-        List<(DocumentChunk Chunk, long[] Ids)> buffer = new(_batchSize);
+        List<(DocumentChunk Chunk, long[] Ids)> all = new();
         foreach (DocumentChunk doc in documents)
         {
             ct.ThrowIfCancellationRequested();
-
-            buffer.Add((doc, TokenizeToWrappedIds(doc.Content)));
-            if (buffer.Count == _batchSize)
-            {
-                foreach (DocumentChunk chunk in EmbedBatch(buffer))
-                {
-                    yield return chunk;
-                }
-
-                buffer.Clear();
-            }
+            all.Add((doc, TokenizeToWrappedIds(doc.Content)));
         }
 
-        if (buffer.Count > 0)
+        // Length-bucketed batching: padding cost of a batch is driven by its longest row,
+        // so grouping similar lengths together wastes the least transformer compute.
+        all.Sort((a, b) => a.Ids.Length.CompareTo(b.Ids.Length));
+        long[][] sortedIds = [.. all.Select(x => x.Ids)];
+        DocumentChunk[] sortedChunks = [.. all.Select(x => x.Chunk)];
+        List<long[][]> batches = EmbeddingBatching.BucketByLength(sortedIds, _batchSize);
+
+        int consumed = 0;
+        foreach (long[][] batch in batches)
         {
             ct.ThrowIfCancellationRequested();
 
-            foreach (DocumentChunk chunk in EmbedBatch(buffer))
+            List<(DocumentChunk Chunk, long[] Ids)> window = new(batch.Length);
+            for (int i = 0; i < batch.Length; i++)
+            {
+                window.Add((sortedChunks[consumed + i], batch[i]));
+            }
+
+            consumed += batch.Length;
+
+            foreach (DocumentChunk chunk in EmbedBatch(window))
             {
                 yield return chunk;
             }

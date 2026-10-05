@@ -39,22 +39,18 @@ public class UploadConcurrencyTests
             UploadForm(("a.md", new string('a', 120))));
 
         await Task.WhenAny(chroma.Entered.Task, Task.Delay(TimeSpan.FromSeconds(5)));
-        Console.WriteLine($"R2: entered={chroma.Entered.Task.IsCompleted}");
         Assert.True(chroma.Entered.Task.IsCompleted, "first upload never reached the Chroma add within 5s");
 
         HttpResponseMessage second = await client.PostAsync(
             $"/session/{session.SessionId}/md",
             UploadForm(("b.md", new string('b', 120))));
 
-        Console.WriteLine($"R2: second={second.StatusCode}");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, second.StatusCode);
         string body = await second.Content.ReadAsStringAsync();
         Assert.Contains("Concurrent upload limit reached", body);
 
-        Console.WriteLine("R2: releasing");
         chroma.Release.TrySetResult();
         HttpResponseMessage finished = await first;
-        Console.WriteLine($"R2: first={finished.StatusCode}");
         Assert.Equal(HttpStatusCode.OK, finished.StatusCode);
     }
 

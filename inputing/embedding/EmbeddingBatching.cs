@@ -35,6 +35,12 @@ public static class EmbeddingBatching
         return batches;
     }
 
+    public static List<long[][]> BucketByLength(long[][] ids, int batchSize)
+    {
+        long[][] sorted = ids.OrderBy(row => row.Length).ToArray();
+        return Partition(sorted, batchSize);
+    }
+
     public static (DenseTensor<long> InputIds, DenseTensor<long> AttentionMask, DenseTensor<long> TokenTypeIds)
         BuildInputs(long[][] ids)
     {
