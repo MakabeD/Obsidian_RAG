@@ -56,11 +56,87 @@ public class ChromaServiceTests
         Assert.Equal([2, 2, 1], handler.BatchSizes);
     }
 
+    [Fact]
+    public async Task Parallel_InitializeAsync_calls_resolve_the_collection_only_once()
+    {
+        GatedCountingChromaService service = new(Options.Create(new RagOptions()));
+
+        Task[] tasks = Enumerable.Range(0, 5)
+            .Select(_ => Task.Run(() => service.InitializeAsync()))
+            .ToArray();
+
+        await Task.WhenAny(service.AllArrived.Task, Task.Delay(TimeSpan.FromSeconds(1)));
+        service.Release.TrySetResult();
+
+        await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, service.ResolveEntries);
+        Assert.All(tasks, t => Assert.Equal(TaskStatus.RanToCompletion, t.Status));
+    }
+
+    [Fact]
+    public async Task A_null_resolved_id_fails_InitializeAsync_with_a_clear_upstream_error()
+    {
+        NullResolvingChromaService service = new(Options.Create(new RagOptions()));
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(
+            () => service.InitializeAsync());
+
+        Assert.Contains("id", exception.Message);
+    }
+
+    [Fact]
+    public async Task A_malformed_collection_body_fails_InitializeAsync_with_a_clear_upstream_error()
+    {
+        ChromaService service = new(
+            new HttpClient(new MalformedBodyHandler()) { BaseAddress = new Uri("http://127.0.0.1:65535") },
+            Options.Create(new RagOptions()),
+            NullLogger<ChromaService>.Instance);
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(
+            () => service.InitializeAsync());
+
+        Assert.Contains("id", exception.Message);
+    }
+
+    private sealed class MalformedBodyHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+            => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{ "name": "vault_collection" }""", System.Text.Encoding.UTF8, "application/json")
+            });
+    }
+
     private sealed class TestChromaService(HttpClient client, IOptions<RagOptions> options)
         : ChromaService(client, options, NullLogger<ChromaService>.Instance)
     {
         protected override Task<string?> ResolveCollectionIdAsync(CancellationToken ct)
             => Task.FromResult("stub-collection-id");
+    }
+
+    private sealed class GatedCountingChromaService(IOptions<RagOptions> options)
+        : ChromaService(new HttpClient(), options, NullLogger<ChromaService>.Instance)
+    {
+        public int ResolveEntries;
+
+        public TaskCompletionSource AllArrived { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource Release { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<string?> ResolveCollectionIdAsync(CancellationToken ct)
+        {
+            Interlocked.Increment(ref ResolveEntries);
+            if (ResolveEntries == 5)
+            {
+                AllArrived.TrySetResult();
+            }
+
+            await Release.Task;
+            return "stub-collection-id";
+        }
     }
 
     private sealed class PostRecordingHandler : HttpMessageHandler
@@ -89,6 +165,13 @@ public class ChromaServiceTests
             ResolveCalls++;
             return Task.FromResult("stub-collection-id");
         }
+    }
+
+    private sealed class NullResolvingChromaService(IOptions<RagOptions> options)
+        : ChromaService(new HttpClient(), options, NullLogger<ChromaService>.Instance)
+    {
+        protected override Task<string?> ResolveCollectionIdAsync(CancellationToken ct)
+            => Task.FromResult<string?>(null);
     }
 
     private sealed class FlakyChromaService(IOptions<RagOptions> options)

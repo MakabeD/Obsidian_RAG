@@ -29,6 +29,7 @@ public class ChromaService : IChromaService
     private readonly string _collectionsPath;
     private readonly ILogger<ChromaService> _logger;
     private readonly int _addBatchSize;
+    private readonly SemaphoreSlim _initGate = new(1, 1);
     private string? _collectionId;
 
     public ChromaService(HttpClient httpClient, IOptions<RagOptions> options, ILogger<ChromaService> logger)
@@ -46,7 +47,20 @@ public class ChromaService : IChromaService
         if (_collectionId != null)
             return;
 
-        _collectionId = await ResolveCollectionIdAsync(ct);
+        await _initGate.WaitAsync(ct);
+        try
+        {
+            if (_collectionId != null)
+                return;
+
+            _collectionId = await ResolveCollectionIdAsync(ct)
+                ?? throw new HttpRequestException(
+                    $"The Chroma collection '{_collectionName}' resolved without an id; the upstream response was malformed.");
+        }
+        finally
+        {
+            _initGate.Release();
+        }
     }
 
     protected virtual async Task<string?> ResolveCollectionIdAsync(CancellationToken ct)
@@ -61,8 +75,7 @@ public class ChromaService : IChromaService
 
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            await CreateCollectionAsync(ct);
-            return _collectionId;
+            return await CreateCollectionAsync(ct);
         }
 
         string body = await response.Content.ReadAsStringAsync(ct);
@@ -70,7 +83,7 @@ public class ChromaService : IChromaService
             $"Could not retrieve the collection '{_collectionName}': {(int)response.StatusCode} {response.ReasonPhrase}. Response: {body}");
     }
 
-    private async Task CreateCollectionAsync(CancellationToken ct)
+    private async Task<string?> CreateCollectionAsync(CancellationToken ct)
     {
         var payload = new
         {
@@ -86,8 +99,7 @@ public class ChromaService : IChromaService
             using HttpResponseMessage existing = await _httpClient.GetAsync($"{_collectionsPath}/{_collectionName}", ct);
             existing.EnsureSuccessStatusCode();
             JsonElement doc = await existing.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-            _collectionId = TryGetId(doc);
-            return;
+            return TryGetId(doc);
         }
 
         if (!createResponse.IsSuccessStatusCode)
@@ -98,7 +110,7 @@ public class ChromaService : IChromaService
         }
 
         JsonElement createdCollection = await createResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
-        _collectionId = TryGetId(createdCollection);
+        return TryGetId(createdCollection);
     }
 
     public async Task AddSessionRecordsAsync(string sessionId, List<ChromaDocument> documents, CancellationToken ct = default)
