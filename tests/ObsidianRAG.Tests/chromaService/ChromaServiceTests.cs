@@ -99,6 +99,58 @@ public class ChromaServiceTests
         Assert.Contains("id", exception.Message);
     }
 
+    [Fact]
+    public async Task Every_chroma_operation_carries_the_session_id_filter()
+    {
+        SessionContractHandler handler = new();
+        ChromaService service = new(
+            new HttpClient(handler) { BaseAddress = new Uri("http://127.0.0.1:65535") },
+            Options.Create(new RagOptions { ChromaAddBatchSize = 2 }),
+            NullLogger<ChromaService>.Instance);
+
+        await service.InitializeAsync();
+
+        List<ChromaDocument> fiveDocs = Enumerable.Range(0, 5)
+            .Select(i => new ChromaDocument($"id{i}", [1f], $"content{i}", new Dictionary<string, object>()))
+            .ToList();
+        List<ChromaDocument> twoDocs = Enumerable.Range(10, 2)
+            .Select(i => new ChromaDocument($"id{i}", [1f], $"content{i}", new Dictionary<string, object>()))
+            .ToList();
+
+        await service.AddSessionRecordsAsync("sess-A", fiveDocs);
+        await service.AddSessionRecordsAsync("sess-B", twoDocs);
+        await service.QuerySessionAsync("sess-A", [1f], 3);
+        await service.TerminateSessionAsync("sess-B");
+
+        Assert.All(handler.Posts,
+            post => Assert.Contains($"/{SessionContractHandler.ResolvedId}/", post.Url));
+
+        List<(string Url, string Body)> adds = handler.Posts.Where(post => post.Url.EndsWith("/add")).ToList();
+        Assert.Equal(4, adds.Count);
+        AssertEveryMetadataCarries("sess-A", adds[0].Body);
+        AssertEveryMetadataCarries("sess-A", adds[1].Body);
+        AssertEveryMetadataCarries("sess-A", adds[2].Body);
+        AssertEveryMetadataCarries("sess-B", adds[3].Body);
+
+        JsonElement queryPayload =
+            JsonDocument.Parse(handler.Posts.Single(post => post.Url.EndsWith("/query")).Body).RootElement;
+        Assert.Equal("sess-A", queryPayload.GetProperty("where").GetProperty("session_id").GetString());
+
+        JsonElement deletePayload =
+            JsonDocument.Parse(handler.Posts.Single(post => post.Url.EndsWith("/delete")).Body).RootElement;
+        Assert.Equal("sess-B", deletePayload.GetProperty("where").GetProperty("session_id").GetString());
+    }
+
+    private static void AssertEveryMetadataCarries(string sessionId, string body)
+    {
+        using JsonDocument json = JsonDocument.Parse(body);
+        JsonElement metadatas = json.RootElement.GetProperty("metadatas");
+        Assert.True(metadatas.GetArrayLength() > 0);
+        Assert.All(
+            metadatas.EnumerateArray().ToArray(),
+            metadata => Assert.Equal(sessionId, metadata.GetProperty("session_id").GetString()));
+    }
+
     private sealed class MalformedBodyHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
@@ -136,6 +188,38 @@ public class ChromaServiceTests
 
             await Release.Task;
             return "stub-collection-id";
+        }
+    }
+
+    private sealed class SessionContractHandler : HttpMessageHandler
+    {
+        public const string ResolvedId = "col-123";
+
+        public List<(string Url, string Body)> Posts { get; } = new();
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            string url = request.RequestUri!.PathAndQuery;
+
+            if (request.Method == HttpMethod.Post)
+            {
+                Posts.Add((url, await request.Content!.ReadAsStringAsync(ct)));
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{ "ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]] }""",
+                        System.Text.Encoding.UTF8,
+                        "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    $$"""{ "id": "{{ResolvedId}}", "name": "vault_collection" }""",
+                    System.Text.Encoding.UTF8,
+                    "application/json")
+            };
         }
     }
 

@@ -38,6 +38,8 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-10-21: the ADR-0001 session boundary is pinned by a contract test — `Every_chroma_operation_carries_the_session_id_filter` opens one real `ChromaService` against a capturing HTTP handler and asserts, on the actual request payloads, that every `/add` batch carries `metadatas[*].session_id` of the calling session (two sessions A/B, split across batching) and every `/query`/`/delete` carries `where.session_id`; mutation-proofed by temporarily omitting each of the three filters and observing the red (issue #25).
+
 - 2026-10-06: `ChromaService.InitializeAsync` is now atomic and null-safe — a `SemaphoreSlim` gate with double-checked assignment (warm path stays lock-free) replaces the lock-free check-then-set race that let concurrent first calls resolve/create the collection in parallel, and a resolved `null` id (any of the three `TryGetId` paths) now throws a clear `HttpRequestException` (502 upstream contract violation) instead of silently leaving `_collectionId` null for `EnsureInitialized` to misreport later; `CreateCollectionAsync` returns the id instead of writing the field, making `InitializeAsync` the single assignment point (issue #23).
 
 - 2026-10-01: upload embedding batches are length-bucketed — `EmbeddRange` tokenizes the corpus, sorts chunks by token id length and fills batches with similar-length rows (`EmbeddingBatching.BucketByLength`) — so padded FLOPs (driven by each batch's longest row) drop measurably on mixed-length vaults (audit gate measured ~1.7-1.9x waste on extreme splits); per-chunk embeddings are invariant to bucketing (pinned against the single-row path) (issue #16).
