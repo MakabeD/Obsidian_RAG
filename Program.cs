@@ -2,6 +2,7 @@ using configuration;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -56,6 +57,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddSingleton<RecentRequestLog>();
 builder.Services.AddSingleton<UploadConcurrencyLimiter>();
+builder.Services.AddOpenApi();
 
 builder.Services.Configure<FormOptions>(o =>
 {
@@ -89,6 +91,9 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 });
 
 app.MapSessionEndpoints();
+
+app.MapOpenApi();
+app.MapScalarApiReference();
 
 app.Run();
 

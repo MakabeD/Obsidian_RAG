@@ -9,6 +9,9 @@ public sealed class WebHost;
 
 internal static class TestSupport
 {
+    internal static string RepoRoot =>
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..");
+
     internal static void RemoveAll(IServiceCollection services, Type t)
     {
         for (int i = services.Count - 1; i >= 0; i--)

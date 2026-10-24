@@ -70,3 +70,5 @@ curl -X DELETE http://localhost:5011/session/<sessionId>
 ```
 
 Health endpoints: `GET /healthz/live` and `GET /healthz/ready`. A log of recent requests is available at `GET /diagnostics/requests`.
+
+The OpenAPI contract is served at `GET /openapi/v1.json` and a navigable Scalar UI at `GET /scalar/v1`. Every configuration knob (defaults, ranges, effects) is documented in [docs/configuration.md](docs/configuration.md).
