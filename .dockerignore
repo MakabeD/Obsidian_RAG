@@ -1,0 +1,15 @@
+.git
+.github
+.opencode
+.vs
+bin
+obj
+tests
+third_party
+docs
+chromadb/data
+model/model.onnx
+model/RAG.zip
+AGENTS.md
+CONTEXT.md
+*.http

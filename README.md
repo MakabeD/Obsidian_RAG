@@ -4,11 +4,24 @@ A local Retrieval-Augmented Generation (RAG) service for Obsidian vaults. It ing
 
 ## Prerequisites
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Docker](https://docs.docker.com/get-docker/) with Docker Compose (for the Chroma server)
-- The embedding model file, downloaded once (~90 MB, step 2 below)
+- For the one-command path: [Docker](https://docs.docker.com/get-docker/) with Docker Compose — nothing else.
+- For the local-development path: [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0), Docker, and the embedding model file (downloaded once, ~90 MB — see below).
 
 ## Getting started
+
+### One command with Docker (recommended)
+
+```bash
+docker compose up
+```
+
+That builds the service image (the Dockerfile downloads the embedding model from the pinned Hugging Face commit and verifies its checksum at build time, so no manual download) and starts the API plus Chroma together. The service answers at `http://localhost:5011`; both services are published to `127.0.0.1` only.
+
+The first build takes a few minutes (.NET SDK restore + the ~90 MB model). `docker compose down` stops the stack; `docker compose up -d` runs it detached.
+
+> Don't run the two paths at the same time: they publish the same host ports (`5011`, `8000`) and use the same `chromadb` container name, so pick either the Docker stack or `dotnet run` + the Chroma-only compose.
+
+### Without Docker
 
 1. **Start the Chroma server** (binds to `127.0.0.1:8000`):
 
