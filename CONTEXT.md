@@ -38,6 +38,8 @@ _None yet. Run `grill-with-docs` before starting non-trivial work to populate th
 
 ## Changelog
 
+- 2026-10-26: the repo is legally open source — `LICENSE` (Apache-2.0, the audit's recommendation: explicit patent grant, corporate-adoption friendly, open-core path kept open) at the root, linked from the README header (issue #18).
+
 - 2026-10-26: the stack runs with one command — a multi-stage `Dockerfile` (digest-pinned .NET base images; the model is downloaded from the pinned HF commit and checksum-verified *at build time*, so the image is reproducible and no manual download remains) plus a root `docker-compose.yml` starting API + Chroma together (same Chroma digest pin as `chromadb/docker-compose.yml`, host ports published to `127.0.0.1` only, API waits for a healthy Chroma, both healthchecks are dependency-free `bash /dev/tcp` HTTP probes since neither image ships curl); infra invariants are pinned by `DockerfileTests`/`RootComposeTests` (digest pinning, localhost-only publishing, compose-vs-CI model-pin equality, non-root, checksum verification) (issue #20).
 
 - 2026-10-24: the API contract is served — `AddOpenApi`/`MapOpenApi` (finally using the already-referenced `Microsoft.AspNetCore.OpenApi`) plus a Scalar UI at `/scalar/v1` (`Scalar.AspNetCore` 2.18.3, exact-pinned; the UI page loads assets from Scalar's CDN, the JSON contract is local) — and the 26→27 `Rag.*` options are now documented with default, range and effect in `docs/configuration.md`; two parity tests (`appsettings.json` ↔ `RagOptions`, `docs/configuration.md` ↔ `RagOptions`) turn doc-vs-code drift into a red suite — they immediately caught `MaxConcurrentUploads` missing from `appsettings.json` (added with #14) plus the 7 options the issue listed (issue #21).

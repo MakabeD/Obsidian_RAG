@@ -2,6 +2,8 @@
 
 A local Retrieval-Augmented Generation (RAG) service for Obsidian vaults. It ingests Markdown files or vault `.zip` uploads, chunks them, embeds them locally with `all-MiniLM-L6-v2` (ONNX Runtime — no cloud, no API keys), and stores the vectors in a Chroma database for semantic search.
 
+Licensed under the [Apache License 2.0](LICENSE).
+
 ## Prerequisites
 
 - For the one-command path: [Docker](https://docs.docker.com/get-docker/) with Docker Compose — nothing else.
